@@ -1,0 +1,108 @@
+[Version]
+Signature  = "$Windows NT$"
+Class      = NetService
+ClassGUID  = {4D36E974-E325-11CE-BFC1-08002BE10318}
+Provider   = %winkd%
+DriverVer  =04/24/2010,1.0.0.0
+
+[Manufacturer]
+%winkd% = WINKD,NTx86,NTia64,NTamd64
+
+[ControlFlags]
+
+;=========================================================================
+;
+;=========================================================================
+;For Win2K
+
+[winkd]
+%natdrv_Desc% = natdrv.ndi, winkd_natdrv
+ 
+;For WinXP and later
+
+[winkd.NTx86]
+%natdrv_Desc% = natdrv.ndi, winkd_natdrv
+
+[winkd.NTia64]
+%natdrv_Desc% = natdrv.ndi, winkd_natdrv
+
+[winkd.NTamd64]
+%natdrv_Desc% = natdrv.ndi, winkd_natdrv
+
+
+[natdrv.ndi]
+AddReg          = natdrv.ndi.AddReg, natdrv.AddReg
+Characteristics = 0x4410 ;  NCF_FILTER | NCF_NDIS_PROTOCOL !--Filter Specific--!!
+CopyFiles       = natdrv.Files.Sys
+CopyInf         = natdrv_m.inf
+
+[natdrv.ndi.Remove]
+DelFiles = natdrv.Files.Sys
+
+[natdrv.ndi.Services]
+AddService = natdrv,, natdrv.AddService
+
+[natdrv.AddService]
+DisplayName    = %natdrvService_Desc%
+ServiceType    = 1 ;SERVICE_KERNEL_DRIVER
+StartType      = 3 ;SERVICE_DEMAND_START
+ErrorControl   = 1 ;SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\natdrv.sys
+AddReg         = natdrv.AddService.AddReg
+LoadOrderGroup = PNP_TDI
+
+
+[natdrv.AddService.AddReg]
+; ----------------------------------------------------------------------
+; Add any miniport-specific parameters here.  These are params that your
+; filter device is going to use.
+;
+;HKR, Parameters, ParameterName,  0x10000, "MultiSz", "Parameter", "Value"
+;HKR, Parameters, ParameterName2, 0x10001, 4
+
+
+; ----------------------------------------------------------------------
+; File copy
+;
+[SourceDisksNames]
+1=%DiskDescription%,"",,
+
+[SourceDisksFiles]
+natdrv.sys=1
+
+[DestinationDirs]
+DefaultDestDir = 12
+natdrv.Files.Sys   = 12   ; %windir%\System32\drivers
+
+[natdrv.Files.Sys]
+natdrv.sys,,,2
+
+; ----------------------------------------------------------------------
+; Filter Install
+;
+
+[natdrv.ndi.AddReg]
+HKR, Ndi, HelpText, , %natdrv_HELP%
+
+HKR, Ndi,            FilterClass,         , failover
+HKR, Ndi,            FilterDeviceInfId,   , winkd_natdrvmp
+HKR, Ndi,            Service,             , natdrv
+HKR, Ndi\Interfaces, UpperRange,          , noupper
+HKR, Ndi\Interfaces, LowerRange,          , nolower
+HKR, Ndi\Interfaces, FilterMediaTypes,    , "ethernet"
+
+[natdrv.AddReg]
+; The following key is Required
+; The following key is natdrv specific
+HKR, Parameters, Param1, 0, 4
+
+; ----------------------------------------------------------------------
+[Strings]
+winkd = "winkd"
+DiskDescription = "NAT/Firewall driver disk (by winkd@)"
+
+natdrv_Desc = "NAT/Firewall Driver"
+natdrv_HELP = "NAT/Firewall Driver"
+natdrvService_Desc = "NAT/Firewall Driver Service"
+
+

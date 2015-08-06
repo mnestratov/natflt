@@ -1,0 +1,80 @@
+[version]
+Signature   	= "$Windows NT$"
+Class     	= NetService
+ClassGUID  	= {4D36E974-E325-11CE-BFC1-08002BE10318}
+Provider    	= %winkd%
+DriverVer   	= 09/23/2013, 1.0.0.1
+
+[Manufacturer]
+%winkd% = winkd,NTx86
+
+[winkd.NTx86]
+%natdrv6_Desc%=Install_natdrv6, winkd_natdrv6
+
+[winkd.NTia64]
+%ndisrd_Desc%=Install_natdrv6, winkd_natdrv6
+
+[winkd.NTamd64]
+%ndisrd_Desc%=Install_natdrv6, winkd_natdrv6
+
+
+;-------------------------------------------------------------------------
+; Installation Section
+;-------------------------------------------------------------------------
+[Install_natdrv6]
+AddReg=Inst_Ndi
+Characteristics=0x40000
+NetCfgInstanceId="{2B649CB0-8F36-4320-B0DD-B32E85F97853}"
+Copyfiles = natdrv6.copyfiles.sys
+
+[SourceDisksNames]
+1=%natdrv6_Desc%,"",,
+
+[SourceDisksFiles]
+natdrv6.sys=1
+
+[DestinationDirs]
+DefaultDestDir=12
+natdrv6.copyfiles.sys=12
+
+[natdrv6.copyfiles.sys]
+natdrv6.sys,,,2
+
+
+;-------------------------------------------------------------------------
+; Ndi installation support
+;-------------------------------------------------------------------------
+[Inst_Ndi]
+HKR, Ndi,Service,,"natdrv6"
+HKR, Ndi,CoServices,0x00010000,"natdrv6"
+HKR, Ndi,HelpText,,%natdrv6_HelpText%
+HKR, Ndi,FilterClass,, custom
+HKR, Ndi,FilterType,0x00010001,0x00000002
+HKR, Ndi\Interfaces,UpperRange,,"noupper"
+HKR, Ndi\Interfaces,LowerRange,,"nolower"
+HKR, Ndi\Interfaces, FilterMediaTypes,,"ethernet,nolower"
+HKR, Ndi\Interfaces, LowerExclude,, "ndisatm, ndiscowan, ndiswan, ndiswanasync, ndiswanipx, ndiswannbf"
+HKR, Ndi,FilterRunType, 0x00010001, 2
+
+;-------------------------------------------------------------------------
+; Service installation support
+;-------------------------------------------------------------------------
+[Install_natdrv6.Services]
+AddService=natdrv6,,natdrv6_Service_Inst
+
+[natdrv6_Service_Inst]
+DisplayName     = %natdrv6_Desc%
+ServiceType     = 1 ;SERVICE_KERNEL_DRIVER
+StartType       = 1 ;SERVICE_SYSTEM_START
+ErrorControl    = 1 ;SERVICE_ERROR_NORMAL
+ServiceBinary   = %12%\natdrv6.sys
+LoadOrderGroup  = NDIS
+Description     = %natdrv6_Desc%
+
+[Install.Remove.Services]
+DelService=natdrv6,0x200
+
+[Strings]
+winkd = "winkd"
+natdrv6_Desc = "NAT/Firewall Filter Driver"
+natdrv6_HelpText = "NAT/Firewall Filter Driver"

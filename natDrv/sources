@@ -1,0 +1,30 @@
+MAJORCOMP=ntos
+MINORCOMP=ndis
+
+TARGETNAME=natdrv
+TARGETTYPE=DRIVER
+TARGETPATH=.
+
+C_DEFINES=$(C_DEFINES) -D_NDIS_LITTLE_ENDIAN
+C_DEFINES=$(C_DEFINES) -DNDIS_MINIPORT_DRIVER -DNDIS_WDM=1 -DNDIS51_MINIPORT=1 -DNDIS51=1
+
+TARGETLIBS=$(DDK_LIB_PATH)\ndis.lib
+
+SOURCES=\
+    filter.c \
+    miniport.c \
+    protocol.c \
+    parse.c \
+    translate.c \
+    firewall.c \
+    log.c \
+    drvio.c
+
+!IF $(FREEBUILD)
+NTDEBUGTYPE=both
+USE_PDB=1
+MSC_OPTIMIZATION = /O2
+!ELSE
+NTDEBUGTYPE=both
+USE_PDB=1
+!ENDIF

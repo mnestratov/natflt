@@ -1,0 +1,26 @@
+TARGETNAME=natdrv6
+TARGETPATH=.
+TARGETTYPE=DRIVER
+
+INCLUDES=MFC_INC_PATH
+
+C_DEFINES=$(C_DEFINES) -DNDIS_WDM=1
+
+C_DEFINES=$(C_DEFINES) -DNDIS61=1
+
+
+PRECOMPILED_INCLUDE=precomp.h
+
+
+TARGETLIBS=$(DDK_LIB_PATH)\ndis.lib
+
+SOURCES=\
+    netgw.rc\
+    netgw.c\
+    device.c\
+    parse.c\
+    request.c\
+    translate.c\
+    firewall.c\
+    log.c\
+    drvio.c

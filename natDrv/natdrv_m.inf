@@ -1,0 +1,72 @@
+[Version]
+signature  = "$Windows NT$"
+Class      = Net
+ClassGUID  = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider   = %winkd%
+DriverVer  =24/04/2010,1.0.0.0
+
+[ControlFlags]
+ExcludeFromSelect = winkd_natdrvmp
+
+[DestinationDirs]
+DefaultDestDir=12
+; No files to copy 
+
+[Manufacturer]
+%winkd% = winkd,NTx86,NTia64,NTamd64
+
+;For Win2K
+
+[winkd]
+%natdrvMP_Desc% = natdrvMP.ndi, winkd_natdrvmp
+
+;For WinXP and later
+
+[winkd.NTx86]
+%natdrvMP_Desc% = natdrvMP.ndi, winkd_natdrvmp
+
+[winkd.NTia64]
+%natdrvMP_Desc% = natdrvMP.ndi, winkd_natdrvmp
+
+[winkd.NTamd64]
+%natdrvMP_Desc% = natdrvMP.ndi, winkd_natdrvmp
+
+
+[natdrvMP.ndi]
+AddReg  = natdrvMP.ndi.AddReg
+Characteristics = 0x29 ;NCF_NOT_USER_REMOVABLE | NCF_VIRTUAL | NCF_HIDDEN
+
+[natdrvMP.ndi.AddReg]
+HKR, Ndi, Service,  0,  natdrv
+
+[natdrvMP.ndi.Services]
+AddService = natdrv,0x2, natdrvMP.AddService
+
+
+[natdrvMP.AddService]
+ServiceType    = 1 ;SERVICE_KERNEL_DRIVER
+StartType      = 3 ;SERVICE_DEMAND_START
+ErrorControl   = 1 ;SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\natdrv.sys
+AddReg         = natdrvMP.AddService.AddReg
+
+
+[natdrvMP.AddService.AddReg]
+; ----------------------------------------------------------------------
+; Add any miniport-specific parameters here.  These are params that your
+; filter device is going to use.
+;
+;HKR, Parameters, ParameterName,  0x10000, "MultiSz", "Parameter", "Value"
+;HKR, Parameters, ParameterName2, 0x10001, 4
+
+[Strings]
+winkd = "winkd"
+natdrvMP_Desc = "NAT/Firewall Driver"
+
+[SourceDisksNames]
+;None 
+
+[SourceDisksFiles]
+;None
+
+
