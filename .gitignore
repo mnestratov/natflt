@@ -1,5 +1,7 @@
 natDrv.6/buildchk_win7_x86.log
 natDrv.6/buildfre_win7_x86.log
+natDrv.6/netgw.VC.db
+natDrv.6/netgw.VC.VC.opendb
 natDrv.6/i386/
 natDrv.6/netgw.ncb
 natDrv.6/netgw.sln
@@ -18,3 +20,24 @@ natSvc/Release/
 natSvc/natSvc.ncb
 natSvc/natSvc.suo
 out
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studo 2015 cache/options directory
+.vs/
+
+# Visual C++ cache files
+ipch/
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cachefile
