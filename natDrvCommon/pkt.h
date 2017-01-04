@@ -135,15 +135,6 @@ BOOLEAN
 		IN FLT_PKT* pFltPkt
 		);
 
-VOID
-	natInitHashTable(
-		IN NAT_HASH_TABLE *pHash
-		);
-
-VOID
-	natFreeHashtable(
-		IN NAT_HASH_TABLE *pHash
-		);
 
 VOID
 	natInsertEntry(

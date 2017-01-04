@@ -61,8 +61,6 @@ FORCEINLINE BOOLEAN
 				 )
 {
 	ULONG			ip_len,hlen;
-	USHORT			wFragOffset;
-	UCHAR			byRF,byDF,byMF;
 
 	*pOutLen = 0;
 

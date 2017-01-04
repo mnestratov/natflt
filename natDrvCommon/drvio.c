@@ -211,14 +211,14 @@ BOOLEAN
 
 NTSTATUS
 	natpDispatch(
-		IN PDEVICE_OBJECT    DeviceObject,
+		IN PDEVICE_OBJECT    devObject,
 		IN PIRP              Irp
 		)
 {
     PIO_STACK_LOCATION  irpStack;
     NTSTATUS            status = STATUS_SUCCESS;
 
-    UNREFERENCED_PARAMETER(DeviceObject);
+    UNREFERENCED_PARAMETER(devObject);
     
     irpStack = IoGetCurrentIrpStackLocation(Irp);     
 

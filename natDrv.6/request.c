@@ -30,7 +30,6 @@ FilterOidRequest(
 	PNDIS_OID_REQUEST ClonedRequest = NULL;
 	PFILTER_REQUEST_CONTEXT pContext = NULL;
 	BOOLEAN bSubmit = FALSE;
-	ULONG Flags = 0;
 
 	if(NdisRequestSetInformation == Request->RequestType || 
 		NdisRequestQueryInformation == Request->RequestType){
@@ -108,7 +107,6 @@ FilterCancelOidRequest(
 		)
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)FilterModuleContext;
-    PFILTER_REQUEST_CONTEXT Context;
     PNDIS_OID_REQUEST OriginalRequest = NULL;
 
     NdisAcquireSpinLock(&pAdapter->Lock);
@@ -192,6 +190,8 @@ FilterDoInternalRequest(
 	PINTERNAL_OID_REQUEST pInternalRequest;
     PNDIS_OID_REQUEST pNdisRequest = NULL;
     NDIS_STATUS Status;
+
+	UNREFERENCED_PARAMETER(OutputBufferLength);
 
 	pInternalRequest = (PINTERNAL_OID_REQUEST)NdisAllocateMemoryWithTagPriority(
 			pAdapter->FilterHandle, sizeof(INTERNAL_OID_REQUEST), FILTER_TAG, NormalPoolPriority);

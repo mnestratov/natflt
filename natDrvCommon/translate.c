@@ -293,7 +293,7 @@ BOOLEAN
 	LIST_ENTRY *pBucket;
 	LIST_ENTRY *pEntry;
 	NDIS_SPIN_LOCK *pLock;
-	NAT_ENTRY *pItem;
+	NAT_ENTRY *pItem = NULL;
 	ULONG uHashIndex;
 	ULONG uKeyAddr;
 
@@ -349,7 +349,7 @@ BOOLEAN
 	LIST_ENTRY *pBucket;
 	LIST_ENTRY *pEntry;
 	NDIS_SPIN_LOCK *pLock;
-	NAT_ENTRY *pItem;
+	NAT_ENTRY *pItem = NULL;
 	ULONG uHashIndex;
 	ULONG uKeyAddr;
 
@@ -445,12 +445,9 @@ static int natFixFtpPortContentAndCreateFwSession(
 	int diff = 0;
 	char * data, *new_data;
 	ULONG sample_len = sizeof("PORT ") - 1;
-	ULONG org_addr_len,new_addr_len,i;
+	ULONG org_addr_len,i;
+	size_t new_addr_len;
 	ULONG addr[6] = {0};
-	ULONG srcIpAddr;
-	ULONG dstIpAddr;
-	USHORT srcPort;
-	USHORT dstPort;
 	unsigned char *new_addr_ptr = (unsigned char*)&newIpAddr;
 	char new_port_str[] = "PORT 255,255,255,255,255,255  ";
 	char *c;
@@ -592,12 +589,11 @@ VOID
 		IN BOOLEAN bOut
 		)
 {
-	ULONG uHashIndex;
 	ULONG uDstPort;
 	ULONG uSrcPort;
-	BOOLEAN bServer;
+	BOOLEAN bServer = FALSE;
 	PLIST_ENTRY pEntry;
-	TRACED_CONNECTION *pItem;
+	TRACED_CONNECTION *pItem = NULL;
 	ULONG prevState = 0;
 	BOOLEAN bFound = FALSE;
 	
@@ -759,9 +755,6 @@ VOID
 		)
 {
 	IP_HDR	*pIp;
-	TCP_HDR	*pTcp;
-	UDP_HDR	*pUdp;
-
 	ULONG ip_len;			
 	ULONG hlen;				
 	ULONG csum;
@@ -858,13 +851,15 @@ VOID
 		 IN PVOID SystemArgument2
 		 )
 {
-	NTSTATUS			ndisStatus;
-	LARGE_INTEGER		DueTime;
 	PLIST_ENTRY			pListEntry = NULL;
 	TRACED_CONNECTION	*pItem = NULL;
-	KIRQL				oldIrql;
 	LIST_ENTRY			ExpiredSessionsList;
 	LARGE_INTEGER		CurrentTime;
+
+	UNREFERENCED_PARAMETER(Dpc);
+	UNREFERENCED_PARAMETER(DeferredContext);
+	UNREFERENCED_PARAMETER(SystemArgument1);
+	UNREFERENCED_PARAMETER(SystemArgument2);
 
 	InitializeListHead( &ExpiredSessionsList );
 
@@ -874,7 +869,7 @@ VOID
 
 	for(pListEntry = g_TracedList.Flink; pListEntry != &g_TracedList;)
 	{
-		LONGLONG CurTimeOut;
+		LONGLONG CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
 
 		pItem = CONTAINING_RECORD(pListEntry, TRACED_CONNECTION, GlobalEntry);
 
@@ -939,7 +934,7 @@ ULONG
 		BOOLEAN bServer
 	)
 {
-	ULONG newState;
+	ULONG newState = SESSION_STATE_UNKNOWN;
 
 	flags &= (TCP_ACK_FLAG | TCP_FIN_FLAG | TCP_SYN_FLAG | TCP_RST_FLAG);
 

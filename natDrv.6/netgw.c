@@ -193,8 +193,12 @@ FilterAttach(
 	NDIS_STATUS Status = NDIS_STATUS_SUCCESS;
 	NDIS_FILTER_ATTRIBUTES FilterAttributes;
 	unsigned char szAdapterNameBuffer [512];
-	ANSI_STRING szAdapterName = {0, sizeof(szAdapterNameBuffer), szAdapterNameBuffer};
+	ANSI_STRING szAdapterName;
 	ULONG Size;
+
+	szAdapterName.Buffer = (PCHAR)szAdapterNameBuffer;
+	szAdapterName.Length = 0;
+	szAdapterName.MaximumLength = sizeof(szAdapterNameBuffer);
 
 	ASSERT(FilterDriverContext == (NDIS_HANDLE)FilterDriverObject);
 	if (FilterDriverContext != (NDIS_HANDLE)FilterDriverObject){
@@ -397,7 +401,6 @@ FilterDetach(
         )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-    PLIST_ENTRY pLink;
 
     NdisAcquireSpinLock(&g_AdapterListLock);
     RemoveEntryList(&pAdapter->ctrl.ListEntry);
@@ -411,9 +414,11 @@ FilterDetach(
 
 VOID
 	FilterUnload(
-        IN  PDRIVER_OBJECT      DriverObject
+        IN  PDRIVER_OBJECT      driverObject
         )
 {
+	UNREFERENCED_PARAMETER(driverObject);
+
 	natDeinitFwSession();
 	natReleaseTracedAll();
 
@@ -434,13 +439,12 @@ VOID
         IN  PNDIS_STATUS_INDICATION StatusIndication
         )
 {
-    PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-    NDIS_STATUS GeneralStatus = StatusIndication->StatusCode;
-    PVOID StatusBuffer = StatusIndication->StatusBuffer;
-    UINT StatusBufferSize = StatusIndication->StatusBufferSize;
+	PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
+	NDIS_STATUS GeneralStatus = StatusIndication->StatusCode;
+	PVOID StatusBuffer = StatusIndication->StatusBuffer;
 	PNDIS_WWAN_CONTEXT_STATE pContextState = NULL;
-	PNDIS_WAN_LINE_UP pLineUp;
-	PNDIS_WAN_LINE_DOWN pLineDown;
+	PNDIS_WAN_LINE_UP pLineUp = NULL;
+	PNDIS_WAN_LINE_DOWN pLineDown = NULL;
 
 	switch ( GeneralStatus ) {
 	case NDIS_STATUS_WAN_LINE_UP:
@@ -535,24 +539,21 @@ FilterDevicePnPEventNotify(
         IN  PNET_DEVICE_PNP_EVENT   NetDevicePnPEvent
         )
 {
-    PNETGW_ADAPT          pAdapter = (PNETGW_ADAPT)Context;
-    NDIS_STATUS         Status = NDIS_STATUS_SUCCESS;
-    NDIS_DEVICE_PNP_EVENT   DevicePnPEvent = NetDevicePnPEvent->DevicePnPEvent;
-    PVOID                   InformationBuffer = NetDevicePnPEvent->InformationBuffer;
-    ULONG                   InformationBufferLength = NetDevicePnPEvent->InformationBufferLength;
+	PNETGW_ADAPT          pAdapter = (PNETGW_ADAPT)Context;
+	NDIS_DEVICE_PNP_EVENT   DevicePnPEvent = NetDevicePnPEvent->DevicePnPEvent;
 
-    switch (DevicePnPEvent){
-    case NdisDevicePnPEventQueryRemoved: 
-    case NdisDevicePnPEventRemoved:
-    case NdisDevicePnPEventSurpriseRemoved:
-    case NdisDevicePnPEventQueryStopped:
-    case NdisDevicePnPEventStopped:
-    case NdisDevicePnPEventPowerProfileChanged:
-    case NdisDevicePnPEventFilterListChanged:
+	switch (DevicePnPEvent){
+	case NdisDevicePnPEventQueryRemoved: 
+	case NdisDevicePnPEventRemoved:
+	case NdisDevicePnPEventSurpriseRemoved:
+	case NdisDevicePnPEventQueryStopped:
+	case NdisDevicePnPEventStopped:
+	case NdisDevicePnPEventPowerProfileChanged:
+	case NdisDevicePnPEventFilterListChanged:
 		break;
 	default:
-        ASSERT(FALSE);
-        break;
+		ASSERT(FALSE);
+		break;
     }
 
     NdisFDevicePnPEventNotify(pAdapter->FilterHandle, NetDevicePnPEvent);
@@ -614,8 +615,6 @@ FilterSendNetBufferListsComplete(
         )
 {
 	PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-	ULONG NumOfSendCompletes = 0;
-	BOOLEAN DispatchLevel;
 	PNET_BUFFER_LIST pCurList = NULL;
 	PNET_BUFFER_LIST_CONTEXT pContext;
 	FLT_PKT_CTX* pFltContext;
@@ -673,7 +672,6 @@ FilterSendNetBufferLists(
         )
 {
 	PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-	NDIS_STATUS	Status = NDIS_STATUS_SUCCESS;
 	PNET_BUFFER_LIST pCurList = NULL, pList2Send = NULL;
 	BOOLEAN	bDispatchLevel;
 	PNET_BUFFER_LIST pFirstList2Send = NULL, pPrevList2Send = NULL;
@@ -909,13 +907,13 @@ FilterReceiveNetBufferLists(
          )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-    NDIS_STATUS	ReturnStatus = NDIS_STATUS_SUCCESS;
     BOOLEAN	bDispatchLevel, bResources;
-    ULONG ReturnFlags;
 	PNET_BUFFER_LIST pCurList = NULL, pNBListToRcv = NULL;
 	PNET_BUFFER_LIST pFirstNblToRcv = NULL, pPrevNblToRcv = NULL;
 	ULONG uNBListCount = 0;
-    
+
+	UNREFERENCED_PARAMETER(NumberOfNetBufferLists);
+
 	bResources = NDIS_TEST_RECEIVE_FLAG(ReceiveFlags, NDIS_RECEIVE_FLAGS_RESOURCES);
 
 	bDispatchLevel = NDIS_TEST_RECEIVE_AT_DISPATCH_LEVEL(ReceiveFlags);
@@ -989,7 +987,8 @@ FilterSetModuleOptions(
     IN  NDIS_HANDLE             Context
     )
 {    
-   return NDIS_STATUS_SUCCESS;
+	UNREFERENCED_PARAMETER(Context);
+	return NDIS_STATUS_SUCCESS;
 }
 
 NDIS_STATUS
@@ -998,5 +997,7 @@ NDIS_STATUS
 		IN FLT_PKT* pFltPkt
 		)
 {
-   return NDIS_STATUS_SUCCESS;
+	UNREFERENCED_PARAMETER(pAdaptControl);
+	UNREFERENCED_PARAMETER(pFltPkt);
+	return NDIS_STATUS_SUCCESS;
 }

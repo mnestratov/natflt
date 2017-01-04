@@ -107,7 +107,6 @@ static BOOLEAN
 	PLIST_ENTRY		pSessionList;
 	PLIST_ENTRY		pEntry;
 	ULONG uHashindex;
-	BOOLEAN bOk = FALSE;
 	FLT_FW_SESSION *pFwSess = NULL;
 	ULONG		srcIpAddr;
 	ULONG		dstIpAddr;
@@ -215,7 +214,6 @@ BOOLEAN
 	NDIS_SPIN_LOCK	*pSessionLock;
 	PLIST_ENTRY		pSessionList;
 	ULONG uHashindex;
-	BOOLEAN bOk = FALSE;
 	FLT_FW_SESSION *pFwSess;
 
 	uHashindex = FLT_FW_SESSION_HASH_VALUE(
@@ -269,14 +267,16 @@ static VOID
 		 IN PVOID SystemArgument2
 		 )
 {
-	NTSTATUS			ndisStatus;
-	LARGE_INTEGER		DueTime;
 	PLIST_ENTRY			pListEntry = NULL;
 	FLT_FW_SESSION		*pItem = NULL;
-	KIRQL				oldIrql;
 	LIST_ENTRY			ExpiredSessionsList;
-	LARGE_INTEGER		CurrentTime;
+	LARGE_INTEGER		CurrentTime = {0};
 	PFILTER_COMMON_CONTROL_BLOCK		pAdapter;
+
+	UNREFERENCED_PARAMETER(Dpc);
+	UNREFERENCED_PARAMETER(DeferredContext);
+	UNREFERENCED_PARAMETER(SystemArgument1);
+	UNREFERENCED_PARAMETER(SystemArgument2);
 
 	InitializeListHead( &ExpiredSessionsList );
 
@@ -286,7 +286,7 @@ static VOID
 
 	for(pListEntry = g_FwSessionList.Flink; pListEntry != &g_FwSessionList;){
 		
-		LONGLONG CurTimeOut;
+		LONGLONG CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
 		ULONG uHashindex;
 		NDIS_SPIN_LOCK	*pSessionLock;
 		PLIST_ENTRY		pSessionList;
@@ -471,7 +471,6 @@ BOOLEAN
 	ULONG dstIpAddr;
 	USHORT srcPort;
 	USHORT dstPort;
-	int i, uPort1 = 0, uPort2 = 0;
 
 	if(pFltPkt->pArp)
 		return TRUE;
@@ -538,7 +537,6 @@ VOID
 {
 	NTSTATUS			ntStatus;
 	OBJECT_ATTRIBUTES	oa;
-	UNICODE_STRING		keyName;
 	HANDLE				hKey;
 	UNICODE_STRING		ValueName;
 	UCHAR				FlagBuffer[sizeof( KEY_VALUE_PARTIAL_INFORMATION ) + sizeof(ULONG)];
