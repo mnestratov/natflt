@@ -19,20 +19,20 @@
 
 #pragma once
 
-typedef struct _FLT_PKT{
-	
-	ULONG	uLen;
-	ULONG	Incoming;
-	ETH_HDR *pEth;
-	ETH_ARP *pArp;
-	IP_HDR	*pIp;
-	TCP_HDR *pTcp;
-	UDP_HDR *pUdp;
-	ICMP_HDR*pIcmp;
-	PVOID	pData;
-	PVOID	pOrgPkt;
-	PVOID	pBuf;
-	struct _FLT_PKT* pNext;
+typedef struct _FLT_PKT {
+
+    ULONG	uLen;
+    ULONG	Incoming;
+    ETH_HDR *pEth;
+    ETH_ARP *pArp;
+    IP_HDR	*pIp;
+    TCP_HDR *pTcp;
+    UDP_HDR *pUdp;
+    ICMP_HDR*pIcmp;
+    PVOID	pData;
+    PVOID	pOrgPkt;
+    PVOID	pBuf;
+    struct _FLT_PKT* pNext;
 
 }FLT_PKT;
 
@@ -54,20 +54,20 @@ extern ULONG g_LogPktNAT;
 								)
 
 BOOLEAN
-	natbParsePacket(
-		IN PVOID	Pkt,
-		IN OUT FLT_PKT* pFltPkt
-		);
+natbParsePacket(
+    IN PVOID	Pkt,
+    IN OUT FLT_PKT* pFltPkt
+);
 
 BOOLEAN
-	natCopyPacketData(
-		 IN PVOID	Pkt,
-		 IN OUT PUCHAR lpBuffer,
-		 IN ULONG		nNumberOfBytesToRead,
-		 IN ULONG		nOffset,                
-		 IN PULONG lpNumberOfBytesRead,
-		 IN BOOLEAN			bWirelessWan
-		 );
+natCopyPacketData(
+    IN PVOID	Pkt,
+    IN OUT PUCHAR lpBuffer,
+    IN ULONG		nNumberOfBytesToRead,
+    IN ULONG		nOffset,
+    IN PULONG lpNumberOfBytesRead,
+    IN BOOLEAN			bWirelessWan
+);
 
 VOID InitPacketLookaside();
 VOID ReleasePacketLookaside();
@@ -76,96 +76,96 @@ VOID natReleaseTracedAll();
 void natInitControlBlock(IN PFILTER_COMMON_CONTROL_BLOCK pAdapter);
 VOID natFreeAllItems(IN PFILTER_COMMON_CONTROL_BLOCK pAdapter);
 VOID
-	natFreeAllFwSessionsAndRules(
-	 IN PFILTER_COMMON_CONTROL_BLOCK pAdapter
-	 );
+natFreeAllFwSessionsAndRules(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter
+);
 
 void natvDumpAllRules(IN PFILTER_COMMON_CONTROL_BLOCK pAdapter);
 
 VOID natInitFwSession();
 VOID natDeinitFwSession();
-VOID 
-	natReadRegValues(
-		IN PUNICODE_STRING	RegistryPath
-		);
+VOID
+natReadRegValues(
+    IN PUNICODE_STRING	RegistryPath
+);
 
 
-BOOLEAN 
-	natbFwSessionCreate(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN ULONG srcIpAddr,
-		IN ULONG dstIpAddr,
-		IN USHORT srcPort,
-		IN USHORT dstPort,
-		IN ULONG bOutgoing,
-		IN UCHAR uProto
-		);
-
-FLT_PKT*
-	AllocateFltPacket();
+BOOLEAN
+natbFwSessionCreate(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN ULONG srcIpAddr,
+    IN ULONG dstIpAddr,
+    IN USHORT srcPort,
+    IN USHORT dstPort,
+    IN ULONG bOutgoing,
+    IN UCHAR uProto
+);
 
 FLT_PKT*
-	CreateFltPacketWithBuffer();
+AllocateFltPacket();
+
+FLT_PKT*
+CreateFltPacketWithBuffer();
 
 VOID FreeFltPkt(
-		IN FLT_PKT* pFltPkt
-		);
+    IN FLT_PKT* pFltPkt
+);
 
 BOOLEAN
-	TranslatePktIncoming(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN OUT FLT_PKT* pFltPkt
-		);
+TranslatePktIncoming(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN OUT FLT_PKT* pFltPkt
+);
 
 BOOLEAN
-	TranslatePktOutgoing(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN OUT FLT_PKT* pFltPkt
-		);
+TranslatePktOutgoing(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN OUT FLT_PKT* pFltPkt
+);
 
 BOOLEAN
-	FilterPkt(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN OUT FLT_PKT* pFltPkt,
-		IN BOOLEAN bOutgoing
-		);
+FilterPkt(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN OUT FLT_PKT* pFltPkt,
+    IN BOOLEAN bOutgoing
+);
 
-BOOLEAN 
-	CopyNdisPacketToFltPacket(
-		IN FLT_PKT* pFltPkt
-		);
+BOOLEAN
+CopyNdisPacketToFltPacket(
+    IN FLT_PKT* pFltPkt
+);
 
 
 VOID
-	natInsertEntry(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN NAT_ENTRY *pItem
-	);
+natInsertEntry(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN NAT_ENTRY *pItem
+);
 
 VOID PrintFtlPkt(
-		 IN char *strPrefix,
-		 IN FLT_PKT* pFltPkt,
-		 IN ULONG uNewIp,
-		 IN BOOLEAN bOut
-		 );
+    IN char *strPrefix,
+    IN FLT_PKT* pFltPkt,
+    IN ULONG uNewIp,
+    IN BOOLEAN bOut
+);
 
 NDIS_STATUS
-	natmSendFltPacket(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapt,
-		IN FLT_PKT* pFltPkt
-		);
+natmSendFltPacket(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapt,
+    IN FLT_PKT* pFltPkt
+);
 
 ULONG
-	natuSessionGetState(
-		ULONG state,
-		ULONG flags,
-		BOOLEAN bServer
-		);
+natuSessionGetState(
+    ULONG state,
+    ULONG flags,
+    BOOLEAN bServer
+);
 
 void
-	natvLogSession(
-		IN const char * prefixStr,
-		IN TRACED_CONNECTION* pItem,
-		IN ULONG prevState,
-		IN const char * sufixStr
-		);
+natvLogSession(
+    IN const char * prefixStr,
+    IN TRACED_CONNECTION* pItem,
+    IN ULONG prevState,
+    IN const char * sufixStr
+);

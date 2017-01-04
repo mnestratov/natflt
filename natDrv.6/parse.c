@@ -22,240 +22,241 @@
 #include "..\natDrvCommon\parse.c"
 
 BOOLEAN
-	natCopyPacketData(
-		 IN PVOID	Pkt,
-		 IN OUT PUCHAR lpBuffer,
-		 IN ULONG nBytesToRead,
-		 IN ULONG nOffset,  
-		 IN PULONG lpBytesRead,
-		 IN BOOLEAN bWirelessWan
-		 )
+natCopyPacketData(
+    IN PVOID	Pkt,
+    IN OUT PUCHAR lpBuffer,
+    IN ULONG nBytesToRead,
+    IN ULONG nOffset,
+    IN PULONG lpBytesRead,
+    IN BOOLEAN bWirelessWan
+)
 {
-	PMDL		pMDL;
-	PUCHAR	pData;
-	ULONG		uBufLen;
-	ULONG		uDataLen;
-	IN PNET_BUFFER pNB = (PNET_BUFFER)Pkt;
-	ULONG		uCurBufOffset = 0;
-	ULONG		CurrentNetBufferSize = 0;
+    PMDL		pMDL;
+    PUCHAR	pData;
+    ULONG		uBufLen;
+    ULONG		uDataLen;
+    IN PNET_BUFFER pNB = (PNET_BUFFER)Pkt;
+    ULONG		uCurBufOffset = 0;
+    ULONG		CurrentNetBufferSize = 0;
 
-	if (pNB == NULL || lpBuffer == NULL || lpBytesRead == NULL)
-		return FALSE;	
-	
-	*lpBytesRead = 0;
+    if (pNB == NULL || lpBuffer == NULL || lpBytesRead == NULL)
+        return FALSE;
 
-	if (nBytesToRead == 0)
-		return TRUE;
+    *lpBytesRead = 0;
 
-	pMDL = NET_BUFFER_CURRENT_MDL(pNB);	
-	CurrentNetBufferSize = NET_BUFFER_DATA_LENGTH(pNB);
-	
-	if(pMDL == NULL || CurrentNetBufferSize == 0){ 
+    if (nBytesToRead == 0)
+        return TRUE;
 
-		//
-		// skip empty NET_BUFFER
-		//
-		ASSERT(FALSE);
-		return FALSE;
-	}
+    pMDL = NET_BUFFER_CURRENT_MDL(pNB);
+    CurrentNetBufferSize = NET_BUFFER_DATA_LENGTH(pNB);
 
-	if(bWirelessWan && 0 == nOffset){
+    if (pMDL == NULL || CurrentNetBufferSize == 0) {
 
-		// Generate fake Ethernet header
-		if(nBytesToRead <= ETHERNET_HEADER_LEN)
-			return FALSE;
+        //
+        // skip empty NET_BUFFER
+        //
+        ASSERT(FALSE);
+        return FALSE;
+    }
 
-		uCurBufOffset = ETHERNET_HEADER_LEN;
-		nBytesToRead -= ETHERNET_HEADER_LEN;
-		RtlZeroMemory(lpBuffer, ETHERNET_HEADER_LEN);
-	}
+    if (bWirelessWan && 0 == nOffset) {
 
-	if (MmGetMdlByteCount(pMDL) <= NET_BUFFER_CURRENT_MDL_OFFSET(pNB)){
+        // Generate fake Ethernet header
+        if (nBytesToRead <= ETHERNET_HEADER_LEN)
+            return FALSE;
 
-		//
-		// offset is more or equal to data size
-		// NET_BUFFER seems to be invalid
-		//
-		ASSERT(FALSE);
-		return FALSE;
-	}
+        uCurBufOffset = ETHERNET_HEADER_LEN;
+        nBytesToRead -= ETHERNET_HEADER_LEN;
+        RtlZeroMemory(lpBuffer, ETHERNET_HEADER_LEN);
+    }
 
-	uBufLen = min(CurrentNetBufferSize,
-		MmGetMdlByteCount(pMDL) - NET_BUFFER_CURRENT_MDL_OFFSET(pNB));
+    if (MmGetMdlByteCount(pMDL) <= NET_BUFFER_CURRENT_MDL_OFFSET(pNB)) {
 
-	pData = ((PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority) +
-		NET_BUFFER_CURRENT_MDL_OFFSET(pNB));
+        //
+        // offset is more or equal to data size
+        // NET_BUFFER seems to be invalid
+        //
+        ASSERT(FALSE);
+        return FALSE;
+    }
 
-	while(uBufLen && pData){
+    uBufLen = min(CurrentNetBufferSize,
+        MmGetMdlByteCount(pMDL) - NET_BUFFER_CURRENT_MDL_OFFSET(pNB));
 
-		if(CurrentNetBufferSize <= nOffset){
+    pData = ((PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority) +
+        NET_BUFFER_CURRENT_MDL_OFFSET(pNB));
 
-			//
-			// requested offset is more than packet size
-			//
-			return FALSE;
-		}
+    while (uBufLen && pData) {
 
-		if (0 == nOffset){
-			//
-			// We have reached requested offset
-			//
-			break;
-		}
+        if (CurrentNetBufferSize <= nOffset) {
 
-		if (nOffset >= uBufLen)
-		{
-			nOffset -= uBufLen;
-			CurrentNetBufferSize -= uBufLen;
-			uBufLen = 0;
-		}
-		else // nOffset < uBufLen
-		{
-			uBufLen -= nOffset;
-			CurrentNetBufferSize -= nOffset;
-			pData += nOffset;
-			nOffset = 0;
-			break;
-		}
+            //
+            // requested offset is more than packet size
+            //
+            return FALSE;
+        }
 
-		if(0 == CurrentNetBufferSize){
-			ASSERT(FALSE);
-			return FALSE;
-		}
-		
-		pMDL = pMDL->Next;
-		if (pMDL == NULL){
+        if (0 == nOffset) {
+            //
+            // We have reached requested offset
+            //
+            break;
+        }
 
-			ASSERT(FALSE);
-			return FALSE;
-		}
+        if (nOffset >= uBufLen)
+        {
+            nOffset -= uBufLen;
+            CurrentNetBufferSize -= uBufLen;
+            uBufLen = 0;
+        }
+        else // nOffset < uBufLen
+        {
+            uBufLen -= nOffset;
+            CurrentNetBufferSize -= nOffset;
+            pData += nOffset;
+            nOffset = 0;
+            break;
+        }
 
-		uBufLen = min(CurrentNetBufferSize,MmGetMdlByteCount(pMDL));
-		pData = (PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
-		if(NULL == pData)
-			return FALSE;
-	}
+        if (0 == CurrentNetBufferSize) {
+            ASSERT(FALSE);
+            return FALSE;
+        }
 
-	ASSERT(!(0 == uBufLen || NULL == pData));
+        pMDL = pMDL->Next;
+        if (pMDL == NULL) {
 
-	// do copy
-	while (uBufLen && pData){
+            ASSERT(FALSE);
+            return FALSE;
+        }
 
-		uDataLen = min(nBytesToRead, uBufLen);
-			
-		RtlCopyMemory(lpBuffer + uCurBufOffset, pData, uDataLen);
-		uCurBufOffset += uDataLen;
-		nBytesToRead -= uDataLen;
+        uBufLen = min(CurrentNetBufferSize, MmGetMdlByteCount(pMDL));
+        pData = (PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
+        if (NULL == pData)
+            return FALSE;
+    }
 
-		if (nBytesToRead == 0){
-			//
-			// finish, don't need more data
-			//
-			*lpBytesRead = uCurBufOffset;
-			return TRUE;
-		}
-		uBufLen -= uDataLen;
-		CurrentNetBufferSize -= uDataLen;
+    ASSERT(!(0 == uBufLen || NULL == pData));
 
-		if (0 == CurrentNetBufferSize){
-			//
-			// We have been asked to copy more data than we have
-			//
-			*lpBytesRead = uCurBufOffset;
-			return TRUE;
-		}
+    // do copy
+    while (uBufLen && pData) {
 
-		pMDL = pMDL->Next;
-		if (pMDL == NULL)
-		{// end of MDL chain, but NET_BUFFER has more data
-			return FALSE;
-		}
+        uDataLen = min(nBytesToRead, uBufLen);
 
-		uBufLen = min(CurrentNetBufferSize,MmGetMdlByteCount(pMDL));
-		pData = (PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
-		if(NULL == pData){
-			return FALSE;
-		}
-	}
+        RtlCopyMemory(lpBuffer + uCurBufOffset, pData, uDataLen);
+        uCurBufOffset += uDataLen;
+        nBytesToRead -= uDataLen;
 
-	return FALSE;
+        if (nBytesToRead == 0) {
+            //
+            // finish, don't need more data
+            //
+            *lpBytesRead = uCurBufOffset;
+            return TRUE;
+        }
+        uBufLen -= uDataLen;
+        CurrentNetBufferSize -= uDataLen;
+
+        if (0 == CurrentNetBufferSize) {
+            //
+            // We have been asked to copy more data than we have
+            //
+            *lpBytesRead = uCurBufOffset;
+            return TRUE;
+        }
+
+        pMDL = pMDL->Next;
+        if (pMDL == NULL)
+        {// end of MDL chain, but NET_BUFFER has more data
+            return FALSE;
+        }
+
+        uBufLen = min(CurrentNetBufferSize, MmGetMdlByteCount(pMDL));
+        pData = (PUCHAR)MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
+        if (NULL == pData) {
+            return FALSE;
+        }
+    }
+
+    return FALSE;
 }
 
 
 
 PNET_BUFFER_LIST
-	filterGetNewNetBufferList(
-		FLT_PKT* pFltPkt,
-		PNETGW_ADAPT pFilter
-		)
+filterGetNewNetBufferList(
+    FLT_PKT* pFltPkt,
+    PNETGW_ADAPT pFilter
+)
 {
-	PMDL pMDL = NULL;
-	PNET_BUFFER_LIST pNBL = NULL;
-	PNET_BUFFER pNB = NULL;
-	ULONG uDataLength = 0, uMdlOffset = 0;
-	BOOLEAN bAllocMdl = FALSE;
-	FLT_PKT_CTX *pPktCtx = NULL;
+    PMDL pMDL = NULL;
+    PNET_BUFFER_LIST pNBL = NULL;
+    PNET_BUFFER pNB = NULL;
+    ULONG uDataLength = 0, uMdlOffset = 0;
+    BOOLEAN bAllocMdl = FALSE;
+    FLT_PKT_CTX *pPktCtx = NULL;
 
-	if (NULL != pFltPkt->pBuf){
+    if (NULL != pFltPkt->pBuf) {
 
-		// pFltPkt contains full copy of data
-		uDataLength = pFltPkt->uLen;
+        // pFltPkt contains full copy of data
+        uDataLength = pFltPkt->uLen;
         pMDL = NdisAllocateMdl(pFilter->FilterHandle, pFltPkt->pBuf, pFltPkt->uLen);
         if (NULL == pMDL)
-			return NULL;
+            return NULL;
 
-		bAllocMdl = TRUE;
+        bAllocMdl = TRUE;
 
-	}else{
+    }
+    else {
 
-		// We have original net buffer list
+        // We have original net buffer list
 
-		ASSERT(pFltPkt->pOrgPkt);
-		uDataLength = pFltPkt->uLen;
-		pMDL = NET_BUFFER_CURRENT_MDL((PNET_BUFFER)pFltPkt->pOrgPkt);
-		uMdlOffset = NET_BUFFER_CURRENT_MDL_OFFSET((PNET_BUFFER)pFltPkt->pOrgPkt);
-		bAllocMdl = FALSE;
+        ASSERT(pFltPkt->pOrgPkt);
+        uDataLength = pFltPkt->uLen;
+        pMDL = NET_BUFFER_CURRENT_MDL((PNET_BUFFER)pFltPkt->pOrgPkt);
+        uMdlOffset = NET_BUFFER_CURRENT_MDL_OFFSET((PNET_BUFFER)pFltPkt->pOrgPkt);
+        bAllocMdl = FALSE;
 
-		if (pMDL == NULL)
-			return NULL;
-	}
+        if (pMDL == NULL)
+            return NULL;
+    }
 
-	pNBL = NdisAllocateNetBufferAndNetBufferList(g_PoolNetBufferList, sizeof(FLT_PKT_CTX), 0, pMDL, 0, uDataLength);
-	if (pNBL == NULL){
-		PrintFtlPkt("NdisAllocateNetBufferAndNetBufferList ", pFltPkt, 0, !pFltPkt->Incoming);
-		goto cleanup;
-	}
+    pNBL = NdisAllocateNetBufferAndNetBufferList(g_PoolNetBufferList, sizeof(FLT_PKT_CTX), 0, pMDL, 0, uDataLength);
+    if (pNBL == NULL) {
+        PrintFtlPkt("NdisAllocateNetBufferAndNetBufferList ", pFltPkt, 0, !pFltPkt->Incoming);
+        goto cleanup;
+    }
 
-	pPktCtx = (FLT_PKT_CTX*)NET_BUFFER_LIST_CONTEXT_DATA_START(pNBL);
-	pPktCtx->Signature = 'eNwG';
-	pPktCtx->Size = sizeof(FLT_PKT_CTX);
-	pPktCtx->pFltPkt = pFltPkt;
-	NET_BUFFER_LIST_INFO(pNBL, TcpIpChecksumNetBufferListInfo) = 0;
-	NET_BUFFER_LIST_INFO(pNBL, TcpLargeSendNetBufferListInfo) = 0;
-	
-	pNB = NET_BUFFER_LIST_FIRST_NB(pNBL);
-	NET_BUFFER_CURRENT_MDL_OFFSET(pNB) = uMdlOffset;
-	NET_BUFFER_DATA_OFFSET(pNB) = uMdlOffset;
- 	pNBL->SourceHandle = pFilter->FilterHandle;
+    pPktCtx = (FLT_PKT_CTX*)NET_BUFFER_LIST_CONTEXT_DATA_START(pNBL);
+    pPktCtx->Signature = 'eNwG';
+    pPktCtx->Size = sizeof(FLT_PKT_CTX);
+    pPktCtx->pFltPkt = pFltPkt;
+    NET_BUFFER_LIST_INFO(pNBL, TcpIpChecksumNetBufferListInfo) = 0;
+    NET_BUFFER_LIST_INFO(pNBL, TcpLargeSendNetBufferListInfo) = 0;
 
-	return pNBL;
+    pNB = NET_BUFFER_LIST_FIRST_NB(pNBL);
+    NET_BUFFER_CURRENT_MDL_OFFSET(pNB) = uMdlOffset;
+    NET_BUFFER_DATA_OFFSET(pNB) = uMdlOffset;
+    pNBL->SourceHandle = pFilter->FilterHandle;
+
+    return pNBL;
 
 cleanup:
 
-	if (bAllocMdl){
-		
-		while(pMDL != NULL){
-			PMDL pTempMdl;
-			pTempMdl = pMDL;
-			pMDL = pMDL->Next;
-			NdisFreeMdl(pTempMdl);
-		}
-	}
+    if (bAllocMdl) {
 
-	if (pNBL != NULL)
-		NdisFreeNetBufferList(pNBL);
+        while (pMDL != NULL) {
+            PMDL pTempMdl;
+            pTempMdl = pMDL;
+            pMDL = pMDL->Next;
+            NdisFreeMdl(pTempMdl);
+        }
+    }
 
-	return NULL;
+    if (pNBL != NULL)
+        NdisFreeNetBufferList(pNBL);
+
+    return NULL;
 }
 
 #define GET_NEXT_MDL	do{ \
@@ -281,199 +282,202 @@ cleanup:
 		}
 
 BOOLEAN
-	natbParsePacket(
-		IN PVOID Pkt,
-		IN OUT FLT_PKT* pFltPkt
-		)
+natbParsePacket(
+    IN PVOID Pkt,
+    IN OUT FLT_PKT* pFltPkt
+)
 {
-	PNET_BUFFER pNetBuf = (PNET_BUFFER)Pkt;
-	ULONG uPktLen	= 0;
-	ULONG uBufLen	= 0;
-	ULONG uCurNetBufSz = 0;
-	PUCHAR pAddress = NULL;
-	ULONG hlen = 0;
-	ETH_HDR* pEthHdr;
-	UINT uNeedBytes	= 0;
-	PMDL pMDL = NULL;
-	PVOID p;
+    PNET_BUFFER pNetBuf = (PNET_BUFFER)Pkt;
+    ULONG uPktLen = 0;
+    ULONG uBufLen = 0;
+    ULONG uCurNetBufSz = 0;
+    PUCHAR pAddress = NULL;
+    ULONG hlen = 0;
+    ETH_HDR* pEthHdr;
+    UINT uNeedBytes = 0;
+    PMDL pMDL = NULL;
+    PVOID p;
 
-	if(NULL == pNetBuf){
+    if (NULL == pNetBuf) {
 
-		pEthHdr = pFltPkt->pBuf;
-		uBufLen = MAX_ETHER_SIZE;
-		uPktLen = pFltPkt->uLen;
-		pFltPkt->pData = NULL;
+        pEthHdr = pFltPkt->pBuf;
+        uBufLen = MAX_ETHER_SIZE;
+        uPktLen = pFltPkt->uLen;
+        pFltPkt->pData = NULL;
 
-	}else{
-		
-		uPktLen = NET_BUFFER_DATA_LENGTH(pNetBuf);
-		pFltPkt->pOrgPkt = pNetBuf;
+    }
+    else {
 
-		pFltPkt->uLen = uPktLen;
-		uCurNetBufSz = NET_BUFFER_DATA_LENGTH(pNetBuf);
-		pMDL = NET_BUFFER_CURRENT_MDL(pNetBuf);
+        uPktLen = NET_BUFFER_DATA_LENGTH(pNetBuf);
+        pFltPkt->pOrgPkt = pNetBuf;
 
-		if (MmGetMdlByteCount(pMDL) <= NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf))
-			goto finish;
+        pFltPkt->uLen = uPktLen;
+        uCurNetBufSz = NET_BUFFER_DATA_LENGTH(pNetBuf);
+        pMDL = NET_BUFFER_CURRENT_MDL(pNetBuf);
 
-		uBufLen = min(MmGetMdlByteCount(pMDL) - NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf), uCurNetBufSz);
-		p = MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
-		if (p == NULL)
-			GOTO_FINISH;
+        if (MmGetMdlByteCount(pMDL) <= NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf))
+            goto finish;
 
-		pEthHdr = (ETH_HDR*)((PUCHAR)p + NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf));
-	}
+        uBufLen = min(MmGetMdlByteCount(pMDL) - NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf), uCurNetBufSz);
+        p = MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
+        if (p == NULL)
+            GOTO_FINISH;
 
-	pFltPkt->pEth = pEthHdr;
+        pEthHdr = (ETH_HDR*)((PUCHAR)p + NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf));
+    }
 
-	switch(pEthHdr->ether_type){
-	case ETHERNET_TYPE_ARP_NET:
+    pFltPkt->pEth = pEthHdr;
 
-		if (uBufLen >= ETHERNET_HEADER_LEN + sizeof(ETH_ARP)){
-			pFltPkt->pArp = (ETH_ARP*)(pFltPkt->pEth + 1);
-			return TRUE;
-		}
+    switch (pEthHdr->ether_type) {
+        case ETHERNET_TYPE_ARP_NET:
 
-		if (uBufLen > ETHERNET_HEADER_LEN)
-			GOTO_FINISH;
+        if (uBufLen >= ETHERNET_HEADER_LEN + sizeof(ETH_ARP)) {
+            pFltPkt->pArp = (ETH_ARP*)(pFltPkt->pEth + 1);
+            return TRUE;
+        }
 
-		GET_NEXT_MDL;
+        if (uBufLen > ETHERNET_HEADER_LEN)
+            GOTO_FINISH;
 
-		if (uBufLen < sizeof(ETH_ARP))
-			GOTO_FINISH;
+        GET_NEXT_MDL;
 
-		pFltPkt->pArp = (ETH_ARP*)(pAddress);
-		return TRUE;
+        if (uBufLen < sizeof(ETH_ARP))
+            GOTO_FINISH;
 
-	case ETHERNET_TYPE_IP_NET:
-	{
-		hlen = IP_HEADER_LEN;
+        pFltPkt->pArp = (ETH_ARP*)(pAddress);
+        return TRUE;
 
-		if (uBufLen >= ETHERNET_HEADER_LEN + hlen){
+        case ETHERNET_TYPE_IP_NET:
+        {
+            hlen = IP_HEADER_LEN;
 
-			uBufLen -= ETHERNET_HEADER_LEN;			
-			pAddress = (PUCHAR)(pFltPkt->pEth + 1);
+            if (uBufLen >= ETHERNET_HEADER_LEN + hlen) {
 
-		}else if(uBufLen > ETHERNET_HEADER_LEN){
+                uBufLen -= ETHERNET_HEADER_LEN;
+                pAddress = (PUCHAR)(pFltPkt->pEth + 1);
 
-			GOTO_FINISH;
+            }
+            else if (uBufLen > ETHERNET_HEADER_LEN) {
 
-		}else{
+                GOTO_FINISH;
 
-			GET_NEXT_MDL;
-		}
+            }
+            else {
 
-		if(uBufLen < hlen)
-			GOTO_FINISH;
-		
-		if(pAddress == NULL)
-			GOTO_FINISH;
+                GET_NEXT_MDL;
+            }
 
-		if(!natCheckIpHeader(
-							(IP_HDR*)pAddress,
-							uPktLen - ETHERNET_HEADER_LEN,
-							&hlen))
-			GOTO_FINISH;
+            if (uBufLen < hlen)
+                GOTO_FINISH;
 
-		if(hlen > uBufLen)
-			GOTO_FINISH;
+            if (pAddress == NULL)
+                GOTO_FINISH;
 
-		pFltPkt->pIp = (IP_HDR*)pAddress;
-	}
-		break;
+            if (!natCheckIpHeader(
+                (IP_HDR*)pAddress,
+                uPktLen - ETHERNET_HEADER_LEN,
+                &hlen))
+                GOTO_FINISH;
 
-	default:
-		return TRUE;
-	}
+            if (hlen > uBufLen)
+                GOTO_FINISH;
 
-	uBufLen -= hlen;
-	uCurNetBufSz -= hlen;
-	
-	pAddress = pAddress + hlen;
+            pFltPkt->pIp = (IP_HDR*)pAddress;
+        }
+        break;
 
-    switch (pFltPkt->pIp->ip_proto){
-	case IPPROTO_UDP:
-		uNeedBytes = sizeof(UDP_HDR);
-		break;
-		
-	case IPPROTO_TCP:
-		uNeedBytes = sizeof(TCP_HDR);
-		break;
-		
-	case IPPROTO_ICMP:
-		uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
-		break;
-	case IPV6_ICMPV6_PROTO:
-		uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
-		break;
-		
-	default:
-		return TRUE;
-	}
+        default:
+        return TRUE;
+    }
 
-	if(uBufLen == 0){
+    uBufLen -= hlen;
+    uCurNetBufSz -= hlen;
 
-		GET_NEXT_MDL;
-	}
+    pAddress = pAddress + hlen;
 
-	if (uBufLen < uNeedBytes)
-		GOTO_FINISH;
+    switch (pFltPkt->pIp->ip_proto) {
+        case IPPROTO_UDP:
+        uNeedBytes = sizeof(UDP_HDR);
+        break;
 
-	switch (pFltPkt->pIp->ip_proto){
-	case IPPROTO_UDP:
-		pFltPkt->pUdp = (UDP_HDR*)pAddress;
-		uNeedBytes = ntohs(pFltPkt->pUdp->uh_len) - sizeof(UDP_HDR);
-		if(uNeedBytes > uPktLen)
-			goto finish;
-		hlen = sizeof(UDP_HDR);
-		pAddress = (PUCHAR)pFltPkt->pUdp + hlen;
-		break;
-		
-	case IPPROTO_TCP:
-		pFltPkt->pTcp = (TCP_HDR*)pAddress;
-		uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen + TCP_HDR_LEN(((TCP_HDR*)pAddress)));
-		if(uNeedBytes > uPktLen)
-			goto finish;
-		hlen = TCP_HDR_LEN(((TCP_HDR*)pAddress));
-		pAddress = (PUCHAR)pFltPkt->pTcp + hlen;
-		break;
-		
-	case IPPROTO_ICMP:
-		pFltPkt->pIcmp = (ICMP_HDR*)pAddress;
-		hlen = sizeof(ICMP_HDR);
-		pAddress = (PUCHAR)pFltPkt->pIcmp + hlen;
-		break;
-	default:
-		GOTO_FINISH;
-	}
+        case IPPROTO_TCP:
+        uNeedBytes = sizeof(TCP_HDR);
+        break;
 
-	if(hlen > uBufLen)
-		GOTO_FINISH;
+        case IPPROTO_ICMP:
+        uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
+        break;
+        case IPV6_ICMPV6_PROTO:
+        uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
+        break;
 
-	uBufLen -= hlen;
-	uCurNetBufSz -= hlen;
+        default:
+        return TRUE;
+    }
 
-	if (uNeedBytes && uBufLen == 0){
+    if (uBufLen == 0) {
 
-		GET_NEXT_MDL;
+        GET_NEXT_MDL;
+    }
 
-		if(uBufLen >= uNeedBytes){
-			pFltPkt->pData = (VOID UNALIGNED*)pAddress;
-			return TRUE;
-		}
-	}
+    if (uBufLen < uNeedBytes)
+        GOTO_FINISH;
 
-	if(uBufLen < uNeedBytes)
-		GOTO_FINISH;
+    switch (pFltPkt->pIp->ip_proto) {
+        case IPPROTO_UDP:
+        pFltPkt->pUdp = (UDP_HDR*)pAddress;
+        uNeedBytes = ntohs(pFltPkt->pUdp->uh_len) - sizeof(UDP_HDR);
+        if (uNeedBytes > uPktLen)
+            goto finish;
+        hlen = sizeof(UDP_HDR);
+        pAddress = (PUCHAR)pFltPkt->pUdp + hlen;
+        break;
 
-	// data is placed within the same buffer as transport header
-	pFltPkt->pData = NULL;
-	return TRUE;
+        case IPPROTO_TCP:
+        pFltPkt->pTcp = (TCP_HDR*)pAddress;
+        uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen + TCP_HDR_LEN(((TCP_HDR*)pAddress)));
+        if (uNeedBytes > uPktLen)
+            goto finish;
+        hlen = TCP_HDR_LEN(((TCP_HDR*)pAddress));
+        pAddress = (PUCHAR)pFltPkt->pTcp + hlen;
+        break;
+
+        case IPPROTO_ICMP:
+        pFltPkt->pIcmp = (ICMP_HDR*)pAddress;
+        hlen = sizeof(ICMP_HDR);
+        pAddress = (PUCHAR)pFltPkt->pIcmp + hlen;
+        break;
+        default:
+        GOTO_FINISH;
+    }
+
+    if (hlen > uBufLen)
+        GOTO_FINISH;
+
+    uBufLen -= hlen;
+    uCurNetBufSz -= hlen;
+
+    if (uNeedBytes && uBufLen == 0) {
+
+        GET_NEXT_MDL;
+
+        if (uBufLen >= uNeedBytes) {
+            pFltPkt->pData = (VOID UNALIGNED*)pAddress;
+            return TRUE;
+        }
+    }
+
+    if (uBufLen < uNeedBytes)
+        GOTO_FINISH;
+
+    // data is placed within the same buffer as transport header
+    pFltPkt->pData = NULL;
+    return TRUE;
 
 finish:
 
-	if(pNetBuf)
-		return CopyNdisPacketToFltPacket(pFltPkt);
+    if (pNetBuf)
+        return CopyNdisPacketToFltPacket(pFltPkt);
 
-	return FALSE;
+    return FALSE;
 }

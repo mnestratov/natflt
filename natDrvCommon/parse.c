@@ -24,147 +24,147 @@ NPAGED_LOOKASIDE_LIST	g_PktLookaside;
 NPAGED_LOOKASIDE_LIST	g_DataLookaside;
 
 
-VOID 
-	InitPacketLookaside()
+VOID
+InitPacketLookaside()
 {
-	ExInitializeNPagedLookasideList(
-		&g_PktLookaside,
-		NULL,NULL,0,
-		sizeof(FLT_PKT),
-		MODULE_TAG1,
-		0
-		);
+    ExInitializeNPagedLookasideList(
+        &g_PktLookaside,
+        NULL, NULL, 0,
+        sizeof(FLT_PKT),
+        MODULE_TAG1,
+        0
+    );
 
-	ExInitializeNPagedLookasideList(
-		&g_DataLookaside,
-		NULL,NULL,0,
-		MAX_ETHER_SIZE,
-		MODULE_TAG2,
-		0
-		);
+    ExInitializeNPagedLookasideList(
+        &g_DataLookaside,
+        NULL, NULL, 0,
+        MAX_ETHER_SIZE,
+        MODULE_TAG2,
+        0
+    );
 }
 
-VOID 
-	ReleasePacketLookaside()
+VOID
+ReleasePacketLookaside()
 {
-	ExDeleteNPagedLookasideList(&g_PktLookaside);
-	ExDeleteNPagedLookasideList(&g_DataLookaside);
+    ExDeleteNPagedLookasideList(&g_PktLookaside);
+    ExDeleteNPagedLookasideList(&g_DataLookaside);
 }
 
 
 
 FORCEINLINE BOOLEAN
-	natCheckIpHeader(
-				 IN IP_HDR	*pIpHeader,
-				 IN ULONG	Length,
-				 IN PULONG	pOutLen
-				 )
+natCheckIpHeader(
+    IN IP_HDR	*pIpHeader,
+    IN ULONG	Length,
+    IN PULONG	pOutLen
+)
 {
-	ULONG			ip_len,hlen;
+    ULONG			ip_len, hlen;
 
-	*pOutLen = 0;
+    *pOutLen = 0;
 
-	if ( pIpHeader->ip_ver != 4 )
-		return FALSE;
+    if (pIpHeader->ip_ver != 4)
+        return FALSE;
 
-	hlen = pIpHeader->ip_hlen << 2;
+    hlen = pIpHeader->ip_hlen << 2;
 
-	if(hlen < IP_HEADER_LEN)
-		return FALSE;
+    if (hlen < IP_HEADER_LEN)
+        return FALSE;
 
-	ip_len = RtlUshortByteSwap(pIpHeader->ip_len);
+    ip_len = RtlUshortByteSwap(pIpHeader->ip_len);
 
-	if(ip_len > Length) 
-		return FALSE;
+    if (ip_len > Length)
+        return FALSE;
 
-	if (ip_len != Length){
-		if (ip_len > Length || ip_len == 0) 
-			ip_len = Length;
-	}
-	if(ip_len < hlen)
-		return FALSE;
+    if (ip_len != Length) {
+        if (ip_len > Length || ip_len == 0)
+            ip_len = Length;
+    }
+    if (ip_len < hlen)
+        return FALSE;
 
-	*pOutLen = hlen;
-	
-	return TRUE;
+    *pOutLen = hlen;
+
+    return TRUE;
 }
 
-BOOLEAN 
-	CopyNdisPacketToFltPacket(
-		IN FLT_PKT* pFltPkt
-		)
+BOOLEAN
+CopyNdisPacketToFltPacket(
+    IN FLT_PKT* pFltPkt
+)
 {
-	ULONG uReadyLen = 0;
+    ULONG uReadyLen = 0;
 
-	if(pFltPkt->pBuf)
-		return TRUE;
+    if (pFltPkt->pBuf)
+        return TRUE;
 
-	pFltPkt->pBuf = ExAllocateFromNPagedLookasideList(&g_DataLookaside);
-	if(NULL == pFltPkt->pBuf){
-		return FALSE;
-	}
+    pFltPkt->pBuf = ExAllocateFromNPagedLookasideList(&g_DataLookaside);
+    if (NULL == pFltPkt->pBuf) {
+        return FALSE;
+    }
 
-	if(!natCopyPacketData(
-		pFltPkt->pOrgPkt,
-		(UCHAR*)pFltPkt->pBuf,
-		MAX_ETHER_SIZE,
-		0,
-		&uReadyLen,
-		FALSE
-		))
-	{
-		return FALSE;
-	}
+    if (!natCopyPacketData(
+        pFltPkt->pOrgPkt,
+        (UCHAR*)pFltPkt->pBuf,
+        MAX_ETHER_SIZE,
+        0,
+        &uReadyLen,
+        FALSE
+    ))
+    {
+        return FALSE;
+    }
 
-	if(uReadyLen != pFltPkt->uLen){
+    if (uReadyLen != pFltPkt->uLen) {
 
-		return FALSE;
-	}
+        return FALSE;
+    }
 
-	if(!natbParsePacket(NULL, pFltPkt)){
+    if (!natbParsePacket(NULL, pFltPkt)) {
 
-		return FALSE;
-	}
+        return FALSE;
+    }
 
-	return TRUE;
+    return TRUE;
 }
 
 FLT_PKT*
-	CreateFltPacketWithBuffer()
+CreateFltPacketWithBuffer()
 {
-	FLT_PKT* pFltPkt;
+    FLT_PKT* pFltPkt;
 
-	pFltPkt = AllocateFltPacket();
-	if(NULL == pFltPkt)
-		return NULL;
+    pFltPkt = AllocateFltPacket();
+    if (NULL == pFltPkt)
+        return NULL;
 
-	pFltPkt->pBuf = ExAllocateFromNPagedLookasideList(&g_DataLookaside);
-	if(NULL == pFltPkt->pBuf){
-		FreeFltPkt(pFltPkt);
-		return NULL;
-	}
+    pFltPkt->pBuf = ExAllocateFromNPagedLookasideList(&g_DataLookaside);
+    if (NULL == pFltPkt->pBuf) {
+        FreeFltPkt(pFltPkt);
+        return NULL;
+    }
 
-	RtlZeroMemory(pFltPkt->pBuf, MAX_ETHER_SIZE);
-	return pFltPkt;
+    RtlZeroMemory(pFltPkt->pBuf, MAX_ETHER_SIZE);
+    return pFltPkt;
 }
 
 
 FLT_PKT*
-	AllocateFltPacket()
+AllocateFltPacket()
 {
-	FLT_PKT* pFltPkt = (FLT_PKT*)ExAllocateFromNPagedLookasideList(&g_PktLookaside);
+    FLT_PKT* pFltPkt = (FLT_PKT*)ExAllocateFromNPagedLookasideList(&g_PktLookaside);
 
-	if(pFltPkt)
-		RtlZeroMemory(pFltPkt, sizeof(*pFltPkt));
+    if (pFltPkt)
+        RtlZeroMemory(pFltPkt, sizeof(*pFltPkt));
 
-	return pFltPkt;
+    return pFltPkt;
 }
 
 VOID FreeFltPkt(FLT_PKT* pFltPkt)
 {
-	if(pFltPkt->pBuf)
-		ExFreeToNPagedLookasideList(&g_DataLookaside, pFltPkt->pBuf);
+    if (pFltPkt->pBuf)
+        ExFreeToNPagedLookasideList(&g_DataLookaside, pFltPkt->pBuf);
 
-	ExFreeToNPagedLookasideList(&g_PktLookaside, pFltPkt);
+    ExFreeToNPagedLookasideList(&g_PktLookaside, pFltPkt);
 }
 

@@ -23,650 +23,661 @@ static LIST_ENTRY g_FwSessionList;
 static NDIS_SPIN_LOCK g_FwSessionLock;
 
 static BOOLEAN
-	natbFwIsAllowedByRule(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN FLT_PKT* pFltPkt,
-		IN ULONG bOutgoing
-	   )
+natbFwIsAllowedByRule(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN FLT_PKT* pFltPkt,
+    IN ULONG bOutgoing
+)
 {
-	FLT_RULE *pRule;
-	PLIST_ENTRY pRuleHead;
-	PLIST_ENTRY pRuleEntry;
-	NDIS_SPIN_LOCK	*pRuleLock;
-	ULONG uPort;
-	ULONG uPrvIpAddr, uPubIpAddr;
-	BOOLEAN bAllowed = FALSE;
+    FLT_RULE *pRule;
+    PLIST_ENTRY pRuleHead;
+    PLIST_ENTRY pRuleEntry;
+    NDIS_SPIN_LOCK	*pRuleLock;
+    ULONG uPort;
+    ULONG uPrvIpAddr, uPubIpAddr;
+    BOOLEAN bAllowed = FALSE;
 
-	if(pFltPkt->pTcp){
-		// ignore TCP_ECE_FLAG
-		if(TCP_SYN_FLAG != (~(TCP_ECE_FLAG | TCP_CWR_FLAG) & pFltPkt->pTcp->th_flags)){
-			return FALSE;
-		}
+    if (pFltPkt->pTcp) {
+        // ignore TCP_ECE_FLAG
+        if (TCP_SYN_FLAG != (~(TCP_ECE_FLAG | TCP_CWR_FLAG) & pFltPkt->pTcp->th_flags)) {
+            return FALSE;
+        }
 
-		pRuleHead = &pAdapter->TcpRuleList;
-		pRuleLock = &pAdapter->TcpRuleLock;
-		uPort = pFltPkt->pTcp->th_dport;
+        pRuleHead = &pAdapter->TcpRuleList;
+        pRuleLock = &pAdapter->TcpRuleLock;
+        uPort = pFltPkt->pTcp->th_dport;
 
-	} else if (pFltPkt->pUdp) {
-		
-		pRuleHead = &pAdapter->UdpRuleList;
-		pRuleLock = &pAdapter->UdpRuleLock;
-		uPort = pFltPkt->pUdp->uh_dport;
-	
-	} else if (pFltPkt->pIcmp) {
-	
-		pRuleHead = &pAdapter->IcmpRuleList;
-		pRuleLock = &pAdapter->IcmpRuleLock;
-		uPort = 0;
+    }
+    else if (pFltPkt->pUdp) {
 
-	}else{
-		return FALSE;
-	}
+        pRuleHead = &pAdapter->UdpRuleList;
+        pRuleLock = &pAdapter->UdpRuleLock;
+        uPort = pFltPkt->pUdp->uh_dport;
 
-	if(bOutgoing){
-		uPrvIpAddr = pFltPkt->pIp->ip_src;
-		uPubIpAddr = pFltPkt->pIp->ip_dst;
-	}else{
-		uPrvIpAddr = pFltPkt->pIp->ip_dst;
-		uPubIpAddr = pFltPkt->pIp->ip_src;
-	}
+    }
+    else if (pFltPkt->pIcmp) {
 
-	NdisAcquireSpinLock(pRuleLock);
+        pRuleHead = &pAdapter->IcmpRuleList;
+        pRuleLock = &pAdapter->IcmpRuleLock;
+        uPort = 0;
 
-	for(pRuleEntry = pRuleHead->Flink; pRuleEntry != pRuleHead; pRuleEntry = pRuleEntry->Flink ){
+    }
+    else {
+        return FALSE;
+    }
 
-		pRule = CONTAINING_RECORD(pRuleEntry, FLT_RULE, ListEntry);
-		if(pRule->out == bOutgoing &&
-			(0 == pRule->port || (pRule->port == uPort)) &&
-			(pRule->prvAddr & pRule->prvMask) == (uPrvIpAddr & pRule->prvMask) &&
-			(pRule->pubAddr & pRule->pubMask) == (uPubIpAddr & pRule->pubMask)
-			)
-		{
+    if (bOutgoing) {
+        uPrvIpAddr = pFltPkt->pIp->ip_src;
+        uPubIpAddr = pFltPkt->pIp->ip_dst;
+    }
+    else {
+        uPrvIpAddr = pFltPkt->pIp->ip_dst;
+        uPubIpAddr = pFltPkt->pIp->ip_src;
+    }
 
-			bAllowed = TRUE;
-			break;
-		}
-	}
+    NdisAcquireSpinLock(pRuleLock);
 
-	NdisReleaseSpinLock(pRuleLock);
+    for (pRuleEntry = pRuleHead->Flink; pRuleEntry != pRuleHead; pRuleEntry = pRuleEntry->Flink) {
 
-	return bAllowed;
+        pRule = CONTAINING_RECORD(pRuleEntry, FLT_RULE, ListEntry);
+        if (pRule->out == bOutgoing &&
+            (0 == pRule->port || (pRule->port == uPort)) &&
+            (pRule->prvAddr & pRule->prvMask) == (uPrvIpAddr & pRule->prvMask) &&
+            (pRule->pubAddr & pRule->pubMask) == (uPubIpAddr & pRule->pubMask)
+            )
+        {
+
+            bAllowed = TRUE;
+            break;
+        }
+    }
+
+    NdisReleaseSpinLock(pRuleLock);
+
+    return bAllowed;
 
 }
 
 static BOOLEAN
-	natbFwSessionExists(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN FLT_PKT* pFltPkt,
-		IN ULONG bOutgoing
-	)
+natbFwSessionExists(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN FLT_PKT* pFltPkt,
+    IN ULONG bOutgoing
+)
 {
-	BOOLEAN bFound = FALSE;
-	BOOLEAN bServer = FALSE;
-	NDIS_SPIN_LOCK	*pSessionLock;
-	PLIST_ENTRY		pSessionList;
-	PLIST_ENTRY		pEntry;
-	ULONG uHashindex;
-	FLT_FW_SESSION *pFwSess = NULL;
-	ULONG		srcIpAddr;
-	ULONG		dstIpAddr;
-	USHORT		srcPort;
-	USHORT		dstPort;
-	ULONG		flags = 0;
+    BOOLEAN bFound = FALSE;
+    BOOLEAN bServer = FALSE;
+    NDIS_SPIN_LOCK	*pSessionLock;
+    PLIST_ENTRY		pSessionList;
+    PLIST_ENTRY		pEntry;
+    ULONG uHashindex;
+    FLT_FW_SESSION *pFwSess = NULL;
+    ULONG		srcIpAddr;
+    ULONG		dstIpAddr;
+    USHORT		srcPort;
+    USHORT		dstPort;
+    ULONG		flags = 0;
 
-	if(pFltPkt->pTcp){
+    if (pFltPkt->pTcp) {
 
-		srcPort = pFltPkt->pTcp->th_sport;
-		dstPort = pFltPkt->pTcp->th_dport;
-		flags = pFltPkt->pTcp->th_flags;
+        srcPort = pFltPkt->pTcp->th_sport;
+        dstPort = pFltPkt->pTcp->th_dport;
+        flags = pFltPkt->pTcp->th_flags;
 
-	} else if (pFltPkt->pUdp) {
-		
-		srcPort = pFltPkt->pUdp->uh_sport;
-		dstPort = pFltPkt->pUdp->uh_dport;
-	
-	} else if (pFltPkt->pIcmp) {
-	
-		srcPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
-		dstPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
+    }
+    else if (pFltPkt->pUdp) {
 
-	}else{
+        srcPort = pFltPkt->pUdp->uh_sport;
+        dstPort = pFltPkt->pUdp->uh_dport;
 
-		return FALSE;
-	}
+    }
+    else if (pFltPkt->pIcmp) {
 
-	srcIpAddr = pFltPkt->pIp->ip_src;
-	dstIpAddr = pFltPkt->pIp->ip_dst;
+        srcPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
+        dstPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
 
-	uHashindex = FLT_FW_SESSION_HASH_VALUE(
-		srcIpAddr, 
-		srcPort,
-		dstIpAddr,
-		dstPort);
+    }
+    else {
 
-	pSessionLock = pAdapter->FwSessionLocks + uHashindex;
-	pSessionList = pAdapter->FwSessionList + uHashindex;
+        return FALSE;
+    }
 
-	NdisAcquireSpinLock(pSessionLock);
+    srcIpAddr = pFltPkt->pIp->ip_src;
+    dstIpAddr = pFltPkt->pIp->ip_dst;
 
-	for(pEntry = pSessionList->Flink; pEntry != pSessionList; pEntry = pEntry->Flink){
+    uHashindex = FLT_FW_SESSION_HASH_VALUE(
+        srcIpAddr,
+        srcPort,
+        dstIpAddr,
+        dstPort);
 
-		pFwSess = CONTAINING_RECORD(pEntry, FLT_FW_SESSION, ListEntry);
+    pSessionLock = pAdapter->FwSessionLocks + uHashindex;
+    pSessionList = pAdapter->FwSessionList + uHashindex;
 
-		if(pFwSess->protocol != pFltPkt->pIp->ip_proto)
-			continue;
+    NdisAcquireSpinLock(pSessionLock);
 
-		if(pFwSess->out == bOutgoing){
+    for (pEntry = pSessionList->Flink; pEntry != pSessionList; pEntry = pEntry->Flink) {
 
-			if(
-				srcIpAddr == pFwSess->srcIpAddr && 
-				srcPort  == pFwSess->srcPort && 
-				dstIpAddr == pFwSess->dstIpAddr && 
-				dstPort == pFwSess->dstPort
-				)
-			{
-				bFound = TRUE;
-				bServer = FALSE;
-				break;
-			}
-		}else{
+        pFwSess = CONTAINING_RECORD(pEntry, FLT_FW_SESSION, ListEntry);
 
-			if(
-				srcIpAddr == pFwSess->dstIpAddr && 
-				srcPort  == pFwSess->dstPort && 
-				dstIpAddr == pFwSess->srcIpAddr && 
-				dstPort == pFwSess->srcPort
-				)
-			{
-				bFound = TRUE;
-				bServer = TRUE;
-				break;
-			}
-		}
-	}
+        if (pFwSess->protocol != pFltPkt->pIp->ip_proto)
+            continue;
 
-	if(bFound){
+        if (pFwSess->out == bOutgoing) {
 
-		ULONG prevState = pFwSess->state;
-		pFwSess->state = natuSessionGetState(pFwSess->state, flags, bServer);
-		if(pFwSess->state != prevState)
-			natvLogSession("FIREWALL", pFwSess, prevState, "changed");
+            if (
+                srcIpAddr == pFwSess->srcIpAddr &&
+                srcPort == pFwSess->srcPort &&
+                dstIpAddr == pFwSess->dstIpAddr &&
+                dstPort == pFwSess->dstPort
+                )
+            {
+                bFound = TRUE;
+                bServer = FALSE;
+                break;
+            }
+        }
+        else {
 
-		KeQuerySystemTime (&pFwSess->UpdateTime);
-	}
+            if (
+                srcIpAddr == pFwSess->dstIpAddr &&
+                srcPort == pFwSess->dstPort &&
+                dstIpAddr == pFwSess->srcIpAddr &&
+                dstPort == pFwSess->srcPort
+                )
+            {
+                bFound = TRUE;
+                bServer = TRUE;
+                break;
+            }
+        }
+    }
 
-	NdisReleaseSpinLock(pSessionLock);
+    if (bFound) {
 
-	return bFound;
+        ULONG prevState = pFwSess->state;
+        pFwSess->state = natuSessionGetState(pFwSess->state, flags, bServer);
+        if (pFwSess->state != prevState)
+            natvLogSession("FIREWALL", pFwSess, prevState, "changed");
+
+        KeQuerySystemTime(&pFwSess->UpdateTime);
+    }
+
+    NdisReleaseSpinLock(pSessionLock);
+
+    return bFound;
 }
 
-BOOLEAN 
-	natbFwSessionCreate(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN ULONG srcIpAddr,
-		IN ULONG dstIpAddr,
-		IN USHORT srcPort,
-		IN USHORT dstPort,
-		IN ULONG bOutgoing,
-		IN UCHAR uProto
-	)
+BOOLEAN
+natbFwSessionCreate(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN ULONG srcIpAddr,
+    IN ULONG dstIpAddr,
+    IN USHORT srcPort,
+    IN USHORT dstPort,
+    IN ULONG bOutgoing,
+    IN UCHAR uProto
+)
 {
-	NDIS_SPIN_LOCK	*pSessionLock;
-	PLIST_ENTRY		pSessionList;
-	ULONG uHashindex;
-	FLT_FW_SESSION *pFwSess;
+    NDIS_SPIN_LOCK	*pSessionLock;
+    PLIST_ENTRY		pSessionList;
+    ULONG uHashindex;
+    FLT_FW_SESSION *pFwSess;
 
-	uHashindex = FLT_FW_SESSION_HASH_VALUE(
-		srcIpAddr, 
-		srcPort,
-		dstIpAddr,
-		dstPort);
+    uHashindex = FLT_FW_SESSION_HASH_VALUE(
+        srcIpAddr,
+        srcPort,
+        dstIpAddr,
+        dstPort);
 
-	pSessionLock = pAdapter->FwSessionLocks + uHashindex;
-	pSessionList = pAdapter->FwSessionList + uHashindex;
+    pSessionLock = pAdapter->FwSessionLocks + uHashindex;
+    pSessionList = pAdapter->FwSessionList + uHashindex;
 
-	pFwSess = ExAllocatePoolWithTag(0, sizeof(FLT_FW_SESSION), 'sF1N');
-	ASSERT(pFwSess);
-	if(NULL == pFwSess){
-		return FALSE;
-	}
+    pFwSess = ExAllocatePoolWithTag(0, sizeof(FLT_FW_SESSION), 'sF1N');
+    ASSERT(pFwSess);
+    if (NULL == pFwSess) {
+        return FALSE;
+    }
 
-	memset(pFwSess, 0, sizeof(*pFwSess));
+    memset(pFwSess, 0, sizeof(*pFwSess));
 
-	pFwSess->state = SESSION_STATE_SYN_RCV;
-	pFwSess->protocol = uProto;
-	pFwSess->out = bOutgoing;
-	pFwSess->dstIpAddr = dstIpAddr;
-	pFwSess->srcIpAddr = srcIpAddr;
-	pFwSess->srcPort = srcPort;
-	pFwSess->dstPort = dstPort;
+    pFwSess->state = SESSION_STATE_SYN_RCV;
+    pFwSess->protocol = uProto;
+    pFwSess->out = bOutgoing;
+    pFwSess->dstIpAddr = dstIpAddr;
+    pFwSess->srcIpAddr = srcIpAddr;
+    pFwSess->srcPort = srcPort;
+    pFwSess->dstPort = dstPort;
 
-	if(g_LogPktPass || g_LogPktDrop)
-		natvLogSession("FIREWALL", pFwSess, SESSION_STATE_UNKNOWN, "created");
+    if (g_LogPktPass || g_LogPktDrop)
+        natvLogSession("FIREWALL", pFwSess, SESSION_STATE_UNKNOWN, "created");
 
-	KeQuerySystemTime ( &pFwSess->UpdateTime );
+    KeQuerySystemTime(&pFwSess->UpdateTime);
 
-	NdisAcquireSpinLock(&g_FwSessionLock);
+    NdisAcquireSpinLock(&g_FwSessionLock);
 
-	NdisAcquireSpinLock(pSessionLock);
-	InsertTailList(pSessionList, &pFwSess->ListEntry);
-	InsertTailList(&g_FwSessionList, &pFwSess->GlobalEntry);
-	pFwSess->pAdapter = pAdapter;
-	NdisReleaseSpinLock(pSessionLock);
+    NdisAcquireSpinLock(pSessionLock);
+    InsertTailList(pSessionList, &pFwSess->ListEntry);
+    InsertTailList(&g_FwSessionList, &pFwSess->GlobalEntry);
+    pFwSess->pAdapter = pAdapter;
+    NdisReleaseSpinLock(pSessionLock);
 
-	NdisReleaseSpinLock(&g_FwSessionLock);
+    NdisReleaseSpinLock(&g_FwSessionLock);
 
-	return TRUE;
+    return TRUE;
 }
 
-static VOID 
-	natFwSessionTimerFunction(
-		 IN struct _KDPC *Dpc,
-		 IN PVOID DeferredContext,
-		 IN PVOID SystemArgument1,
-		 IN PVOID SystemArgument2
-		 )
+static VOID
+natFwSessionTimerFunction(
+    IN struct _KDPC *Dpc,
+    IN PVOID DeferredContext,
+    IN PVOID SystemArgument1,
+    IN PVOID SystemArgument2
+)
 {
-	PLIST_ENTRY			pListEntry = NULL;
-	FLT_FW_SESSION		*pItem = NULL;
-	LIST_ENTRY			ExpiredSessionsList;
-	LARGE_INTEGER		CurrentTime = {0};
-	PFILTER_COMMON_CONTROL_BLOCK		pAdapter;
+    PLIST_ENTRY			pListEntry = NULL;
+    FLT_FW_SESSION		*pItem = NULL;
+    LIST_ENTRY			ExpiredSessionsList;
+    LARGE_INTEGER		CurrentTime = { 0 };
+    PFILTER_COMMON_CONTROL_BLOCK		pAdapter;
 
-	UNREFERENCED_PARAMETER(Dpc);
-	UNREFERENCED_PARAMETER(DeferredContext);
-	UNREFERENCED_PARAMETER(SystemArgument1);
-	UNREFERENCED_PARAMETER(SystemArgument2);
+    UNREFERENCED_PARAMETER(Dpc);
+    UNREFERENCED_PARAMETER(DeferredContext);
+    UNREFERENCED_PARAMETER(SystemArgument1);
+    UNREFERENCED_PARAMETER(SystemArgument2);
 
-	InitializeListHead( &ExpiredSessionsList );
+    InitializeListHead(&ExpiredSessionsList);
 
-	KeQuerySystemTime ( &CurrentTime );
+    KeQuerySystemTime(&CurrentTime);
 
-	NdisAcquireSpinLock( &g_FwSessionLock );
+    NdisAcquireSpinLock(&g_FwSessionLock);
 
-	for(pListEntry = g_FwSessionList.Flink; pListEntry != &g_FwSessionList;){
-		
-		LONGLONG CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
-		ULONG uHashindex;
-		NDIS_SPIN_LOCK	*pSessionLock;
-		PLIST_ENTRY		pSessionList;
+    for (pListEntry = g_FwSessionList.Flink; pListEntry != &g_FwSessionList;) {
 
-		pItem = CONTAINING_RECORD(pListEntry, FLT_FW_SESSION, GlobalEntry);
+        LONGLONG CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
+        ULONG uHashindex;
+        NDIS_SPIN_LOCK	*pSessionLock;
+        PLIST_ENTRY		pSessionList;
 
-		switch(pItem->state){
-		case SESSION_STATE_ESTABLISHED:
-			CurTimeOut = IDLE_SESSION_TIMEOUT_SEC;
-			break;
-		case SESSION_STATE_UNKNOWN:
-		case SESSION_STATE_SYN_RCV:
-		case SESSION_STATE_SYN_ACK_RCV:
-		case SESSION_STATE_CLOSED:
-			CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
-			break;
-		case SESSION_STATE_FIN_CLN_RCV:
-		case SESSION_STATE_FIN_SRV_RCV:
-			CurTimeOut = HALF_CLOSED_SESSION_TIMEOUT_SEC;
-			break;
-		}
+        pItem = CONTAINING_RECORD(pListEntry, FLT_FW_SESSION, GlobalEntry);
 
-		if (CurrentTime.QuadPart - pItem->UpdateTime.QuadPart < SECONDS(CurTimeOut) ){
+        switch (pItem->state) {
+        case SESSION_STATE_ESTABLISHED:
+            CurTimeOut = IDLE_SESSION_TIMEOUT_SEC;
+            break;
+        case SESSION_STATE_UNKNOWN:
+        case SESSION_STATE_SYN_RCV:
+        case SESSION_STATE_SYN_ACK_RCV:
+        case SESSION_STATE_CLOSED:
+            CurTimeOut = INIT_SESSION_TIMEOUT_SEC;
+            break;
+        case SESSION_STATE_FIN_CLN_RCV:
+        case SESSION_STATE_FIN_SRV_RCV:
+            CurTimeOut = HALF_CLOSED_SESSION_TIMEOUT_SEC;
+            break;
+        }
 
-			pListEntry = pListEntry->Flink;
-			continue;
-		}	
+        if (CurrentTime.QuadPart - pItem->UpdateTime.QuadPart < SECONDS(CurTimeOut)) {
 
-		if(g_LogPktPass || g_LogPktDrop)
-			natvLogSession("FIREWALL", pItem, pItem->state, "deleted");
+            pListEntry = pListEntry->Flink;
+            continue;
+        }
 
-		//
-		// this session is timed out
-		//
-		pListEntry = pListEntry->Flink;
-		
-		//
-		// Remove it from global list
-		//
-		RemoveEntryList(&pItem->GlobalEntry);
+        if (g_LogPktPass || g_LogPktDrop)
+            natvLogSession("FIREWALL", pItem, pItem->state, "deleted");
 
-		//
-		// Remove Firewall session item from HASHed Firewall session list
-		//
+        //
+        // this session is timed out
+        //
+        pListEntry = pListEntry->Flink;
 
-		uHashindex = FLT_FW_SESSION_HASH_VALUE(
-			pItem->srcIpAddr, 
-			pItem->srcPort,
-			pItem->dstIpAddr,
-			pItem->dstPort);
+        //
+        // Remove it from global list
+        //
+        RemoveEntryList(&pItem->GlobalEntry);
 
-		pAdapter = (PFILTER_COMMON_CONTROL_BLOCK)pItem->pAdapter;
-		pSessionLock = pAdapter->FwSessionLocks + uHashindex;
-		pSessionList = pAdapter->FwSessionList + uHashindex;
+        //
+        // Remove Firewall session item from HASHed Firewall session list
+        //
 
-		NdisAcquireSpinLock(pSessionLock);
-		RemoveEntryList(&pItem->ListEntry);
-		NdisReleaseSpinLock(pSessionLock);
+        uHashindex = FLT_FW_SESSION_HASH_VALUE(
+            pItem->srcIpAddr,
+            pItem->srcPort,
+            pItem->dstIpAddr,
+            pItem->dstPort);
 
-		//
-		// Free the memory
-		// 
-		ExFreePool(pItem);
-	}
+        pAdapter = (PFILTER_COMMON_CONTROL_BLOCK)pItem->pAdapter;
+        pSessionLock = pAdapter->FwSessionLocks + uHashindex;
+        pSessionList = pAdapter->FwSessionList + uHashindex;
 
-	NdisReleaseSpinLock(  &g_FwSessionLock );
+        NdisAcquireSpinLock(pSessionLock);
+        RemoveEntryList(&pItem->ListEntry);
+        NdisReleaseSpinLock(pSessionLock);
+
+        //
+        // Free the memory
+        // 
+        ExFreePool(pItem);
+    }
+
+    NdisReleaseSpinLock(&g_FwSessionLock);
 }
 
 VOID natInitFwSession()
 {
-	LARGE_INTEGER DueTime;
+    LARGE_INTEGER DueTime;
 
-	KeInitializeTimer(&g_FwSessionTimer);
-	KeInitializeDpc(&g_FwSessionDpc, natFwSessionTimerFunction, NULL);
+    KeInitializeTimer(&g_FwSessionTimer);
+    KeInitializeDpc(&g_FwSessionDpc, natFwSessionTimerFunction, NULL);
 
-	InitializeListHead(&g_FwSessionList);
-	NdisAllocateSpinLock(&g_FwSessionLock);
+    InitializeListHead(&g_FwSessionList);
+    NdisAllocateSpinLock(&g_FwSessionLock);
 
-	DueTime.QuadPart = -1;
-	KeSetTimerEx(&g_FwSessionTimer, DueTime, INIT_SESSION_TIMEOUT_SEC*1000 ,&g_FwSessionDpc);
-}
-
-VOID 
-	natDeinitFwSession()
-{
-	KeCancelTimer(&g_FwSessionTimer);
-	KeFlushQueuedDpcs();
+    DueTime.QuadPart = -1;
+    KeSetTimerEx(&g_FwSessionTimer, DueTime, INIT_SESSION_TIMEOUT_SEC * 1000, &g_FwSessionDpc);
 }
 
 VOID
-	natFreeAllFwSessionsAndRules(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter
-	)
+natDeinitFwSession()
 {
-	ULONG i;
-	LIST_ENTRY *pFwList;
-	NDIS_SPIN_LOCK *pFwListLock;
-	LIST_ENTRY *pEntry;
-	FLT_FW_SESSION *pFwSession;
-	FLT_RULE *pRule;
+    KeCancelTimer(&g_FwSessionTimer);
+    KeFlushQueuedDpcs();
+}
 
-	//
-	// TCP rules
-	//
-	NdisAcquireSpinLock(&pAdapter->TcpRuleLock);
-	while(!IsListEmpty(&pAdapter->TcpRuleList)){
+VOID
+natFreeAllFwSessionsAndRules(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter
+)
+{
+    ULONG i;
+    LIST_ENTRY *pFwList;
+    NDIS_SPIN_LOCK *pFwListLock;
+    LIST_ENTRY *pEntry;
+    FLT_FW_SESSION *pFwSession;
+    FLT_RULE *pRule;
 
-		pEntry = RemoveHeadList(&pAdapter->TcpRuleList);
+    //
+    // TCP rules
+    //
+    NdisAcquireSpinLock(&pAdapter->TcpRuleLock);
+    while (!IsListEmpty(&pAdapter->TcpRuleList)) {
 
-		pRule  = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
+        pEntry = RemoveHeadList(&pAdapter->TcpRuleList);
 
-		ExFreePool(pRule);
-	}
-	NdisReleaseSpinLock(&pAdapter->TcpRuleLock);
+        pRule = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
 
-	//
-	// UDP rules
-	//
-	NdisAcquireSpinLock(&pAdapter->UdpRuleLock);
-	while(!IsListEmpty(&pAdapter->UdpRuleList)){
+        ExFreePool(pRule);
+    }
+    NdisReleaseSpinLock(&pAdapter->TcpRuleLock);
 
-		pEntry = RemoveHeadList(&pAdapter->UdpRuleList);
+    //
+    // UDP rules
+    //
+    NdisAcquireSpinLock(&pAdapter->UdpRuleLock);
+    while (!IsListEmpty(&pAdapter->UdpRuleList)) {
 
-		pRule  = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
+        pEntry = RemoveHeadList(&pAdapter->UdpRuleList);
 
-		ExFreePool(pRule);
-	}
-	NdisReleaseSpinLock(&pAdapter->UdpRuleLock);
+        pRule = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
 
-	//
-	// ICMP rules
-	//
-	NdisAcquireSpinLock(&pAdapter->IcmpRuleLock);
-	while(!IsListEmpty(&pAdapter->IcmpRuleList)){
+        ExFreePool(pRule);
+    }
+    NdisReleaseSpinLock(&pAdapter->UdpRuleLock);
 
-		pEntry = RemoveHeadList(&pAdapter->IcmpRuleList);
+    //
+    // ICMP rules
+    //
+    NdisAcquireSpinLock(&pAdapter->IcmpRuleLock);
+    while (!IsListEmpty(&pAdapter->IcmpRuleList)) {
 
-		pRule  = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
+        pEntry = RemoveHeadList(&pAdapter->IcmpRuleList);
 
-		ExFreePool(pRule);
-	}
-	NdisReleaseSpinLock(&pAdapter->IcmpRuleLock);
+        pRule = CONTAINING_RECORD(pEntry, FLT_RULE, ListEntry);
 
-	//
-	// Free firewall sessions if any
-	//
-	for(i = 0;i<FLT_FW_SESSION_HASH_TBL_SZ;i++){
+        ExFreePool(pRule);
+    }
+    NdisReleaseSpinLock(&pAdapter->IcmpRuleLock);
 
-		pFwList = pAdapter->FwSessionList + i;
-		pFwListLock = pAdapter->FwSessionLocks + i;
+    //
+    // Free firewall sessions if any
+    //
+    for (i = 0; i < FLT_FW_SESSION_HASH_TBL_SZ; i++) {
 
-		NdisAcquireSpinLock( &g_FwSessionLock );
+        pFwList = pAdapter->FwSessionList + i;
+        pFwListLock = pAdapter->FwSessionLocks + i;
 
-		NdisAcquireSpinLock(pFwListLock);
+        NdisAcquireSpinLock(&g_FwSessionLock);
 
-		while(!IsListEmpty(pFwList)){
+        NdisAcquireSpinLock(pFwListLock);
 
-			pEntry = RemoveHeadList(pFwList);
+        while (!IsListEmpty(pFwList)) {
 
-			pFwSession  = CONTAINING_RECORD(pEntry, FLT_FW_SESSION, ListEntry);
+            pEntry = RemoveHeadList(pFwList);
 
-			RemoveEntryList(&pFwSession->GlobalEntry);
+            pFwSession = CONTAINING_RECORD(pEntry, FLT_FW_SESSION, ListEntry);
 
-			ExFreePool(pFwSession);
-		}
+            RemoveEntryList(&pFwSession->GlobalEntry);
 
-		NdisReleaseSpinLock(pFwListLock);
-		NdisReleaseSpinLock( &g_FwSessionLock );
+            ExFreePool(pFwSession);
+        }
 
-		NdisFreeSpinLock(pFwListLock);
-	}
+        NdisReleaseSpinLock(pFwListLock);
+        NdisReleaseSpinLock(&g_FwSessionLock);
+
+        NdisFreeSpinLock(pFwListLock);
+    }
 }
 
 BOOLEAN
-	FilterPkt(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
-		IN FLT_PKT* pFltPkt,
-		IN BOOLEAN bOutgoing
-		)
+FilterPkt(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdapter,
+    IN FLT_PKT* pFltPkt,
+    IN BOOLEAN bOutgoing
+)
 {
-	ULONG srcIpAddr;
-	ULONG dstIpAddr;
-	USHORT srcPort;
-	USHORT dstPort;
+    ULONG srcIpAddr;
+    ULONG dstIpAddr;
+    USHORT srcPort;
+    USHORT dstPort;
 
-	if(pFltPkt->pArp)
-		return TRUE;
+    if (pFltPkt->pArp)
+        return TRUE;
 
-	if(!pAdapter->bStarted){
-		return FALSE;
-	}
+    if (!pAdapter->bStarted) {
+        return FALSE;
+    }
 
-	if(!pAdapter->bFiltered)
-		return TRUE;
+    if (!pAdapter->bFiltered)
+        return TRUE;
 
-	if(NULL == pFltPkt->pIp){
-		return FALSE;
-	}
+    if (NULL == pFltPkt->pIp) {
+        return FALSE;
+    }
 
-	if(natbFwSessionExists(pAdapter, pFltPkt, bOutgoing))
-		return TRUE;
+    if (natbFwSessionExists(pAdapter, pFltPkt, bOutgoing))
+        return TRUE;
 
-	if(!natbFwIsAllowedByRule(pAdapter, pFltPkt, bOutgoing)){
-		return FALSE;
-	}
+    if (!natbFwIsAllowedByRule(pAdapter, pFltPkt, bOutgoing)) {
+        return FALSE;
+    }
 
-	if(pFltPkt->pTcp){
+    if (pFltPkt->pTcp) {
 
-		srcPort = pFltPkt->pTcp->th_sport;
-		dstPort = pFltPkt->pTcp->th_dport;
+        srcPort = pFltPkt->pTcp->th_sport;
+        dstPort = pFltPkt->pTcp->th_dport;
 
-	}else if (pFltPkt->pUdp) {
-		
-		srcPort = pFltPkt->pUdp->uh_sport;
-		dstPort = pFltPkt->pUdp->uh_dport;
-	
-	}else if (pFltPkt->pIcmp) {
+    }
+    else if (pFltPkt->pUdp) {
 
-		srcPort = pFltPkt->pIcmp->icmp_hun.idseq.id,
-		dstPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
+        srcPort = pFltPkt->pUdp->uh_sport;
+        dstPort = pFltPkt->pUdp->uh_dport;
 
-	}else{
-		return FALSE;
-	}
+    }
+    else if (pFltPkt->pIcmp) {
 
-	srcIpAddr = pFltPkt->pIp->ip_src;
-	dstIpAddr = pFltPkt->pIp->ip_dst;
+        srcPort = pFltPkt->pIcmp->icmp_hun.idseq.id,
+            dstPort = pFltPkt->pIcmp->icmp_hun.idseq.id;
 
-	if(!natbFwSessionCreate(
-		pAdapter, 
-		srcIpAddr,
-		dstIpAddr,
-		srcPort,
-		dstPort,
-		bOutgoing,
-		pFltPkt->pIp->ip_proto)){
-		return FALSE;
-	}
+    }
+    else {
+        return FALSE;
+    }
 
-	return TRUE;
+    srcIpAddr = pFltPkt->pIp->ip_src;
+    dstIpAddr = pFltPkt->pIp->ip_dst;
+
+    if (!natbFwSessionCreate(
+        pAdapter,
+        srcIpAddr,
+        dstIpAddr,
+        srcPort,
+        dstPort,
+        bOutgoing,
+        pFltPkt->pIp->ip_proto)) {
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 
-VOID 
-	natReadRegValues(
-		IN PUNICODE_STRING	RegistryPath
-		)
+VOID
+natReadRegValues(
+    IN PUNICODE_STRING	RegistryPath
+)
 {
-	NTSTATUS			ntStatus;
-	OBJECT_ATTRIBUTES	oa;
-	HANDLE				hKey;
-	UNICODE_STRING		ValueName;
-	UCHAR				FlagBuffer[sizeof( KEY_VALUE_PARTIAL_INFORMATION ) + sizeof(ULONG)];
-	ULONG				resultLength;
+    NTSTATUS			ntStatus;
+    OBJECT_ATTRIBUTES	oa;
+    HANDLE				hKey;
+    UNICODE_STRING		ValueName;
+    UCHAR				FlagBuffer[sizeof(KEY_VALUE_PARTIAL_INFORMATION) + sizeof(ULONG)];
+    ULONG				resultLength;
 
-	PAGED_CODE();
+    PAGED_CODE();
 
-	InitializeObjectAttributes(
-		&oa, RegistryPath, 
-		OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, 
-		NULL, NULL
-		);
-	
-	ntStatus = ZwOpenKey(&hKey, KEY_ALL_ACCESS, &oa);
+    InitializeObjectAttributes(
+        &oa, RegistryPath,
+        OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE,
+        NULL, NULL
+    );
 
-	if (!NT_SUCCESS(ntStatus)) {
-		return;
-	}
-	
-	RtlInitUnicodeString( &ValueName, NAT_LOG_REG_VALUE_NAT );
+    ntStatus = ZwOpenKey(&hKey, KEY_ALL_ACCESS, &oa);
 
-	ntStatus = 
-		ZwQueryValueKey( 
-		hKey,
-		&ValueName,
-		KeyValuePartialInformation,
-		FlagBuffer,
-		sizeof(FlagBuffer),
-		&resultLength 
-		);
+    if (!NT_SUCCESS(ntStatus)) {
+        return;
+    }
 
-	if ( NT_SUCCESS( ntStatus ) && 
-		((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD ) {
+    RtlInitUnicodeString(&ValueName, NAT_LOG_REG_VALUE_NAT);
 
-			g_LogPktNAT = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION) FlagBuffer)->Data));
-	}
+    ntStatus =
+        ZwQueryValueKey(
+            hKey,
+            &ValueName,
+            KeyValuePartialInformation,
+            FlagBuffer,
+            sizeof(FlagBuffer),
+            &resultLength
+        );
+
+    if (NT_SUCCESS(ntStatus) &&
+        ((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD) {
+
+        g_LogPktNAT = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Data));
+    }
 
 
-	//////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
 
-	RtlInitUnicodeString( &ValueName, NAT_LOG_REG_VALUE_PASS );
+    RtlInitUnicodeString(&ValueName, NAT_LOG_REG_VALUE_PASS);
 
-	ntStatus = 
-		ZwQueryValueKey( 
-		hKey,
-		&ValueName,
-		KeyValuePartialInformation,
-		FlagBuffer,
-		sizeof(FlagBuffer),
-		&resultLength 
-		);
+    ntStatus =
+        ZwQueryValueKey(
+            hKey,
+            &ValueName,
+            KeyValuePartialInformation,
+            FlagBuffer,
+            sizeof(FlagBuffer),
+            &resultLength
+        );
 
-	if ( NT_SUCCESS( ntStatus ) && 
-		((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD ) {
+    if (NT_SUCCESS(ntStatus) &&
+        ((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD) {
 
-		g_LogPktPass = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION) FlagBuffer)->Data));
-	}
+        g_LogPktPass = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Data));
+    }
 
-	//////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////
 
-	RtlInitUnicodeString( &ValueName, NAT_LOG_REG_VALUE_DROP );
+    RtlInitUnicodeString(&ValueName, NAT_LOG_REG_VALUE_DROP);
 
-	ntStatus = 
-		ZwQueryValueKey( 
-		hKey,
-		&ValueName,
-		KeyValuePartialInformation,
-		FlagBuffer,
-		sizeof(FlagBuffer),
-		&resultLength 
-		);
+    ntStatus =
+        ZwQueryValueKey(
+            hKey,
+            &ValueName,
+            KeyValuePartialInformation,
+            FlagBuffer,
+            sizeof(FlagBuffer),
+            &resultLength
+        );
 
-	if ( NT_SUCCESS( ntStatus ) && 
-		((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD ) {
+    if (NT_SUCCESS(ntStatus) &&
+        ((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Type == REG_DWORD) {
 
-		g_LogPktDrop = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION) FlagBuffer)->Data));
-	}
+        g_LogPktDrop = *((PLONG) &(((PKEY_VALUE_PARTIAL_INFORMATION)FlagBuffer)->Data));
+    }
 
-	ZwClose(hKey);
+    ZwClose(hKey);
 }
 
 
 static void
 natvDumpRulesHelper(
-	PLIST_ENTRY pRuleHead,
-	NDIS_SPIN_LOCK	*pRuleLock
-	)
+    PLIST_ENTRY pRuleHead,
+    NDIS_SPIN_LOCK	*pRuleLock
+)
 {
-	FLT_RULE *pRule;
-	PLIST_ENTRY pRuleEntry;
-	char pubIpAddrStr[30];
-	char prvIpAddrStr[30];
-	char pubMaskStr[30];
-	char prvMaskStr[30];
+    FLT_RULE *pRule;
+    PLIST_ENTRY pRuleEntry;
+    char pubIpAddrStr[30];
+    char prvIpAddrStr[30];
+    char pubMaskStr[30];
+    char prvMaskStr[30];
 
-	NdisAcquireSpinLock(pRuleLock);
+    NdisAcquireSpinLock(pRuleLock);
 
-	for(pRuleEntry = pRuleHead->Flink; pRuleEntry != pRuleHead; pRuleEntry = pRuleEntry->Flink ){
+    for (pRuleEntry = pRuleHead->Flink; pRuleEntry != pRuleHead; pRuleEntry = pRuleEntry->Flink) {
 
-		pRule = CONTAINING_RECORD(pRuleEntry, FLT_RULE, ListEntry);
+        pRule = CONTAINING_RECORD(pRuleEntry, FLT_RULE, ListEntry);
 
-		PRINT_IP(pubIpAddrStr, &pRule->pubAddr);
-		PRINT_IP(pubMaskStr, &pRule->pubMask);
+        PRINT_IP(pubIpAddrStr, &pRule->pubAddr);
+        PRINT_IP(pubMaskStr, &pRule->pubMask);
 
-		PRINT_IP(prvIpAddrStr, &pRule->prvAddr);
-		PRINT_IP(prvMaskStr, &pRule->prvMask);
+        PRINT_IP(prvIpAddrStr, &pRule->prvAddr);
+        PRINT_IP(prvMaskStr, &pRule->prvMask);
 
-		DbgPrint("%s RULE: ALLOW PUB=%s/%s PRV=%s/%s DST PORT=%u\n",
-			pRule->out ? "OUTGOING" : "INCOMING",
-			pubIpAddrStr,pubMaskStr,
-			prvIpAddrStr,prvMaskStr,
-			RtlUshortByteSwap(pRule->port));
-	}
+        DbgPrint("%s RULE: ALLOW PUB=%s/%s PRV=%s/%s DST PORT=%u\n",
+            pRule->out ? "OUTGOING" : "INCOMING",
+            pubIpAddrStr, pubMaskStr,
+            prvIpAddrStr, prvMaskStr,
+            RtlUshortByteSwap(pRule->port));
+    }
 
-	NdisReleaseSpinLock(pRuleLock);
+    NdisReleaseSpinLock(pRuleLock);
 
 }
 
 void
 natvDumpAllRules(IN PFILTER_COMMON_CONTROL_BLOCK pAdapter)
 {
-	DbgPrint("---------------------- TCP rules ------------------------\n");
-	natvDumpRulesHelper(&pAdapter->TcpRuleList , &pAdapter->TcpRuleLock);
-	DbgPrint("---------------------------------------------------------\n");
+    DbgPrint("---------------------- TCP rules ------------------------\n");
+    natvDumpRulesHelper(&pAdapter->TcpRuleList, &pAdapter->TcpRuleLock);
+    DbgPrint("---------------------------------------------------------\n");
 
-	DbgPrint("---------------------- UDP rules ------------------------\n");
-	natvDumpRulesHelper(&pAdapter->UdpRuleList , &pAdapter->UdpRuleLock);
-	DbgPrint("---------------------------------------------------------\n");
+    DbgPrint("---------------------- UDP rules ------------------------\n");
+    natvDumpRulesHelper(&pAdapter->UdpRuleList, &pAdapter->UdpRuleLock);
+    DbgPrint("---------------------------------------------------------\n");
 
-	DbgPrint("---------------------- ICMP rules ------------------------\n");
-	natvDumpRulesHelper(&pAdapter->IcmpRuleList , &pAdapter->IcmpRuleLock);
-	DbgPrint("---------------------------------------------------------\n");
+    DbgPrint("---------------------- ICMP rules ------------------------\n");
+    natvDumpRulesHelper(&pAdapter->IcmpRuleList, &pAdapter->IcmpRuleLock);
+    DbgPrint("---------------------------------------------------------\n");
 }

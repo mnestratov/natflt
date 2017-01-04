@@ -58,71 +58,71 @@
 #define FLT_FW_SESSION_HASH_TBL_MASK (FLT_FW_SESSION_HASH_TBL_SZ-1)
 #define FLT_FW_SESSION_HASH_VALUE(a1,p1,a2,p2) (((a1) ^ (a2) ^ (p1) ^ (p2))&FLT_FW_SESSION_HASH_TBL_MASK)
 
-typedef struct _NAT_ENTRY{
+typedef struct _NAT_ENTRY {
 
-	LIST_ENTRY	InEntry;
-	LIST_ENTRY	OutEntry;
+    LIST_ENTRY	InEntry;
+    LIST_ENTRY	OutEntry;
 
-	ULONG		prvIpAddr;
-	ULONG		pubIpAddr;
+    ULONG		prvIpAddr;
+    ULONG		pubIpAddr;
 
-	NDIS_SPIN_LOCK Lock;
-	LIST_ENTRY	TracedList;
+    NDIS_SPIN_LOCK Lock;
+    LIST_ENTRY	TracedList;
 
 }NAT_ENTRY;
 
-typedef struct _TRACED_CONNECTION{
+typedef struct _TRACED_CONNECTION {
 
-	LIST_ENTRY	ListEntry;
-	LIST_ENTRY	GlobalEntry;
+    LIST_ENTRY	ListEntry;
+    LIST_ENTRY	GlobalEntry;
 
-	union{
-		ULONG		srcIpAddrOrg;
-		ULONG		srcIpAddr;
-	};
-	union{
-		ULONG		dstIpAddrOrg;
-		ULONG		dstIpAddr;
-	};
-	union{
-		USHORT		srcPortOrg;
-		USHORT		srcPort;
-	};
-	union{
-		USHORT		dstPortOrg;
-		USHORT		dstPort;
-	};
+    union {
+        ULONG		srcIpAddrOrg;
+        ULONG		srcIpAddr;
+    };
+    union {
+        ULONG		dstIpAddrOrg;
+        ULONG		dstIpAddr;
+    };
+    union {
+        USHORT		srcPortOrg;
+        USHORT		srcPort;
+    };
+    union {
+        USHORT		dstPortOrg;
+        USHORT		dstPort;
+    };
 
-	ULONG		srcIpAddrNew;
-	ULONG		dstIpAddrNew;
-	USHORT		srcPortNew;
-	USHORT		dstPortNew;
+    ULONG		srcIpAddrNew;
+    ULONG		dstIpAddrNew;
+    USHORT		srcPortNew;
+    USHORT		dstPortNew;
 
-	ULONG		protocol;
-	ULONG		out;
+    ULONG		protocol;
+    ULONG		out;
 
-	int			cln_seq_diff;
-	ULONG		cln_seq;
+    int			cln_seq_diff;
+    ULONG		cln_seq;
 
-	LARGE_INTEGER UpdateTime;
-	ULONG		state;
+    LARGE_INTEGER UpdateTime;
+    ULONG		state;
 
-	union{
-		PVOID		pAdapter;
-		NAT_ENTRY	*pNatItem;
-	};
+    union {
+        PVOID		pAdapter;
+        NAT_ENTRY	*pNatItem;
+    };
 
 }TRACED_CONNECTION, FLT_FW_SESSION;
 
-typedef enum _SESSION_STATE{
+typedef enum _SESSION_STATE {
 
-	SESSION_STATE_UNKNOWN = 0,
-	SESSION_STATE_CLOSED,
-	SESSION_STATE_SYN_RCV,
-	SESSION_STATE_SYN_ACK_RCV,
-	SESSION_STATE_ESTABLISHED,
-	SESSION_STATE_FIN_CLN_RCV,
-	SESSION_STATE_FIN_SRV_RCV,
+    SESSION_STATE_UNKNOWN = 0,
+    SESSION_STATE_CLOSED,
+    SESSION_STATE_SYN_RCV,
+    SESSION_STATE_SYN_ACK_RCV,
+    SESSION_STATE_ESTABLISHED,
+    SESSION_STATE_FIN_CLN_RCV,
+    SESSION_STATE_FIN_SRV_RCV,
 
 }SESSION_STATE;
 
@@ -131,52 +131,52 @@ typedef enum _SESSION_STATE{
 #define HALF_CLOSED_SESSION_TIMEOUT_SEC 10*60
 
 
-typedef struct _NAT_HASH_TABLE{
+typedef struct _NAT_HASH_TABLE {
 
-	NDIS_SPIN_LOCK Locks[NAT_HASH_TBL_SZ];
-	LIST_ENTRY	   List[NAT_HASH_TBL_SZ];
+    NDIS_SPIN_LOCK Locks[NAT_HASH_TBL_SZ];
+    LIST_ENTRY	   List[NAT_HASH_TBL_SZ];
 
 }NAT_HASH_TABLE;
 
 typedef struct _FLT_RULE
 {
-	LIST_ENTRY ListEntry;
-	ULONG prvAddr;
-	ULONG prvMask;
-	ULONG pubAddr;
-	ULONG pubMask;
-	ULONG port;
-	ULONG out;
+    LIST_ENTRY ListEntry;
+    ULONG prvAddr;
+    ULONG prvMask;
+    ULONG pubAddr;
+    ULONG pubMask;
+    ULONG port;
+    ULONG out;
 }FLT_RULE;
 
 
-typedef struct _FILTER_COMMON_CONTROL_BLOCK{
+typedef struct _FILTER_COMMON_CONTROL_BLOCK {
 
-	LIST_ENTRY					ListEntry;
+    LIST_ENTRY					ListEntry;
 
-	LIST_ENTRY					TcpRuleList;
-	NDIS_SPIN_LOCK			TcpRuleLock;
+    LIST_ENTRY					TcpRuleList;
+    NDIS_SPIN_LOCK			TcpRuleLock;
 
-	LIST_ENTRY					UdpRuleList;
-	NDIS_SPIN_LOCK			UdpRuleLock;
+    LIST_ENTRY					UdpRuleList;
+    NDIS_SPIN_LOCK			UdpRuleLock;
 
-	LIST_ENTRY					IcmpRuleList;
-	NDIS_SPIN_LOCK			IcmpRuleLock;
+    LIST_ENTRY					IcmpRuleList;
+    NDIS_SPIN_LOCK			IcmpRuleLock;
 
-	NDIS_SPIN_LOCK			FwSessionLocks[FLT_FW_SESSION_HASH_TBL_SZ];
-	LIST_ENTRY					FwSessionList[FLT_FW_SESSION_HASH_TBL_SZ];
+    NDIS_SPIN_LOCK			FwSessionLocks[FLT_FW_SESSION_HASH_TBL_SZ];
+    LIST_ENTRY					FwSessionList[FLT_FW_SESSION_HASH_TBL_SZ];
 
-	NAT_HASH_TABLE			NatIncoming;
-	NAT_HASH_TABLE			NatOutgoing;
+    NAT_HASH_TABLE			NatIncoming;
+    NAT_HASH_TABLE			NatOutgoing;
 
-	union{
+    union {
 
-		UCHAR			Arr[6];
-		ULONGLONG		Val;
-	}MacAddr;
+        UCHAR			Arr[6];
+        ULONGLONG		Val;
+    }MacAddr;
 
-	ULONG								bStarted;
-	ULONG								bFiltered;
+    ULONG								bStarted;
+    ULONG								bFiltered;
 
 }FILTER_COMMON_CONTROL_BLOCK, *PFILTER_COMMON_CONTROL_BLOCK;
 

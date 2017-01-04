@@ -20,77 +20,77 @@
 #include "precomp.h"
 
 NTSTATUS
-	natpDispatch(
-		IN PDEVICE_OBJECT    DeviceObject,
-		IN PIRP              Irp
-		);
+natpDispatch(
+    IN PDEVICE_OBJECT    DeviceObject,
+    IN PIRP              Irp
+);
 
 NDIS_STATUS
 FilterRegisterDevice(
     VOID
-    )
+)
 {
-	NDIS_STATUS            Status = NDIS_STATUS_SUCCESS;
-	UNICODE_STRING         DeviceName;
-	UNICODE_STRING         DeviceLinkUnicodeString;
-	PDRIVER_DISPATCH       DispatchTable[IRP_MJ_MAXIMUM_FUNCTION+1];
-	NDIS_DEVICE_OBJECT_ATTRIBUTES   DeviceAttribute;
-	PFILTER_DEVICE_EXTENSION        FilterDeviceExtension;
-	PDRIVER_OBJECT                  DriverObject;
- 
-	NdisZeroMemory(DispatchTable, (IRP_MJ_MAXIMUM_FUNCTION+1) * sizeof(PDRIVER_DISPATCH));
-	DispatchTable[IRP_MJ_CREATE] = natpDispatch;
-	DispatchTable[IRP_MJ_CLEANUP] = natpDispatch;
-	DispatchTable[IRP_MJ_CLOSE] = natpDispatch;
-	DispatchTable[IRP_MJ_DEVICE_CONTROL] = natpDispatch;
-	DispatchTable[IRP_MJ_INTERNAL_DEVICE_CONTROL] = natpDispatch;
+    NDIS_STATUS            Status = NDIS_STATUS_SUCCESS;
+    UNICODE_STRING         DeviceName;
+    UNICODE_STRING         DeviceLinkUnicodeString;
+    PDRIVER_DISPATCH       DispatchTable[IRP_MJ_MAXIMUM_FUNCTION + 1];
+    NDIS_DEVICE_OBJECT_ATTRIBUTES   DeviceAttribute;
+    PFILTER_DEVICE_EXTENSION        FilterDeviceExtension;
+    PDRIVER_OBJECT                  DriverObject;
 
-	NdisInitUnicodeString(&DeviceName, FILTER_NT_DEVICE_NAME);
-	NdisInitUnicodeString(&DeviceLinkUnicodeString, FILTER_DOSDEVICE_NAME);
-	
-	//
-	// Create a device object and register our dispatch handlers
-	//
-	NdisZeroMemory(&DeviceAttribute, sizeof(NDIS_DEVICE_OBJECT_ATTRIBUTES));
+    NdisZeroMemory(DispatchTable, (IRP_MJ_MAXIMUM_FUNCTION + 1) * sizeof(PDRIVER_DISPATCH));
+    DispatchTable[IRP_MJ_CREATE] = natpDispatch;
+    DispatchTable[IRP_MJ_CLEANUP] = natpDispatch;
+    DispatchTable[IRP_MJ_CLOSE] = natpDispatch;
+    DispatchTable[IRP_MJ_DEVICE_CONTROL] = natpDispatch;
+    DispatchTable[IRP_MJ_INTERNAL_DEVICE_CONTROL] = natpDispatch;
 
-	DeviceAttribute.Header.Type = NDIS_OBJECT_TYPE_DEVICE_OBJECT_ATTRIBUTES;
-	DeviceAttribute.Header.Revision = NDIS_DEVICE_OBJECT_ATTRIBUTES_REVISION_1;
-	DeviceAttribute.Header.Size = sizeof(NDIS_DEVICE_OBJECT_ATTRIBUTES);
-	
-	DeviceAttribute.DeviceName = &DeviceName;
-	DeviceAttribute.SymbolicName = &DeviceLinkUnicodeString;
-	DeviceAttribute.MajorFunctions = &DispatchTable[0];
-	DeviceAttribute.ExtensionSize = sizeof(FILTER_DEVICE_EXTENSION);
+    NdisInitUnicodeString(&DeviceName, FILTER_NT_DEVICE_NAME);
+    NdisInitUnicodeString(&DeviceLinkUnicodeString, FILTER_DOSDEVICE_NAME);
 
-	Status = NdisRegisterDeviceEx(
-                FilterDriverHandle,
-                &DeviceAttribute,
-                &DeviceObject,
-                &NdisFilterDeviceHandle
-                );
-   
-   
-	if (Status == NDIS_STATUS_SUCCESS){
+    //
+    // Create a device object and register our dispatch handlers
+    //
+    NdisZeroMemory(&DeviceAttribute, sizeof(NDIS_DEVICE_OBJECT_ATTRIBUTES));
 
-		FilterDeviceExtension = NdisGetDeviceReservedExtension(DeviceObject);   
-		FilterDeviceExtension->Signature = 'FTDR';
-		FilterDeviceExtension->Handle = FilterDriverHandle;
+    DeviceAttribute.Header.Type = NDIS_OBJECT_TYPE_DEVICE_OBJECT_ATTRIBUTES;
+    DeviceAttribute.Header.Revision = NDIS_DEVICE_OBJECT_ATTRIBUTES_REVISION_1;
+    DeviceAttribute.Header.Size = sizeof(NDIS_DEVICE_OBJECT_ATTRIBUTES);
 
-		// Workaround NDIS bug
-		DriverObject = (PDRIVER_OBJECT)FilterDriverObject;
-	}
+    DeviceAttribute.DeviceName = &DeviceName;
+    DeviceAttribute.SymbolicName = &DeviceLinkUnicodeString;
+    DeviceAttribute.MajorFunctions = &DispatchTable[0];
+    DeviceAttribute.ExtensionSize = sizeof(FILTER_DEVICE_EXTENSION);
 
-	return Status;      
+    Status = NdisRegisterDeviceEx(
+        FilterDriverHandle,
+        &DeviceAttribute,
+        &DeviceObject,
+        &NdisFilterDeviceHandle
+    );
+
+
+    if (Status == NDIS_STATUS_SUCCESS) {
+
+        FilterDeviceExtension = NdisGetDeviceReservedExtension(DeviceObject);
+        FilterDeviceExtension->Signature = 'FTDR';
+        FilterDeviceExtension->Handle = FilterDriverHandle;
+
+        // Workaround NDIS bug
+        DriverObject = (PDRIVER_OBJECT)FilterDriverObject;
+    }
+
+    return Status;
 }
 
 VOID
 FilterDeregisterDevice(
     IN VOID
-    )
+)
 {
-	if (NdisFilterDeviceHandle != NULL)
-	{
-		NdisDeregisterDeviceEx(NdisFilterDeviceHandle);
-	}
-	NdisFilterDeviceHandle = NULL;
+    if (NdisFilterDeviceHandle != NULL)
+    {
+        NdisDeregisterDeviceEx(NdisFilterDeviceHandle);
+    }
+    NdisFilterDeviceHandle = NULL;
 }

@@ -20,783 +20,790 @@
 #include "precomp.h"
 
 NDIS_STATUS
-	natmInitialize(
-		OUT PNDIS_STATUS OpenErrorStatus,
-		OUT PUINT SelectedMediumIndex,
-		IN  PNDIS_MEDIUM MediumArray,
-		IN  UINT MediumArraySize,
-		IN  NDIS_HANDLE MiniportAdapterHandle,
-		IN  NDIS_HANDLE WrapperConfigurationContext
-		)
+natmInitialize(
+    OUT PNDIS_STATUS OpenErrorStatus,
+    OUT PUINT SelectedMediumIndex,
+    IN  PNDIS_MEDIUM MediumArray,
+    IN  UINT MediumArraySize,
+    IN  NDIS_HANDLE MiniportAdapterHandle,
+    IN  NDIS_HANDLE WrapperConfigurationContext
+)
 {
-	UINT i;
-	PFILTER_ADAPTER	pAdapt;
-	NDIS_STATUS Status = NDIS_STATUS_FAILURE;
-	NDIS_MEDIUM Medium;
+    UINT i;
+    PFILTER_ADAPTER	pAdapt;
+    NDIS_STATUS Status = NDIS_STATUS_FAILURE;
+    NDIS_MEDIUM Medium;
 
-	UNREFERENCED_PARAMETER(WrapperConfigurationContext);
+    UNREFERENCED_PARAMETER(WrapperConfigurationContext);
 
-	__try{
-		
-		pAdapt = NdisIMGetDeviceContext(MiniportAdapterHandle);
-		pAdapt->MiniportHandle = MiniportAdapterHandle;
+    __try {
 
-		Medium = pAdapt->Medium;
+        pAdapt = NdisIMGetDeviceContext(MiniportAdapterHandle);
+        pAdapt->MiniportHandle = MiniportAdapterHandle;
 
-		if (Medium == NdisMediumWan)
-			Medium = NdisMedium802_3;
+        Medium = pAdapt->Medium;
 
-		for (i = 0; i < MediumArraySize; i++){
-		
-			if (MediumArray[i] == Medium){
-				*SelectedMediumIndex = i;
-				break;
-			}
-		}
+        if (Medium == NdisMediumWan)
+            Medium = NdisMedium802_3;
 
-		if (i == MediumArraySize){
+        for (i = 0; i < MediumArraySize; i++) {
 
-			Status = NDIS_STATUS_UNSUPPORTED_MEDIA;
-			__leave;
-		}
+            if (MediumArray[i] == Medium) {
+                *SelectedMediumIndex = i;
+                break;
+            }
+        }
 
-		NdisMSetAttributesEx(
-			MiniportAdapterHandle,
-			pAdapt,
-			0,
-			NDIS_ATTRIBUTE_IGNORE_PACKET_TIMEOUT    |
-			NDIS_ATTRIBUTE_IGNORE_REQUEST_TIMEOUT|
-			NDIS_ATTRIBUTE_INTERMEDIATE_DRIVER |
-			NDIS_ATTRIBUTE_DESERIALIZE |
-			NDIS_ATTRIBUTE_NO_HALT_ON_SUSPEND,
-			0);
+        if (i == MediumArraySize) {
 
-		pAdapt->LastIndicatedStatus = NDIS_STATUS_MEDIA_CONNECT;
-		pAdapt->natmDeviceState = NdisDeviceStateD0;
-		pAdapt->natpDeviceState = NdisDeviceStateD0;
+            Status = NDIS_STATUS_UNSUPPORTED_MEDIA;
+            __leave;
+        }
 
-		NdisAcquireSpinLock(&g_AdapterListLock);
-		InsertTailList(&g_AdapterListHead, &pAdapt->ctrl.ListEntry);
-		NdisReleaseSpinLock(&g_AdapterListLock);
+        NdisMSetAttributesEx(
+            MiniportAdapterHandle,
+            pAdapt,
+            0,
+            NDIS_ATTRIBUTE_IGNORE_PACKET_TIMEOUT |
+            NDIS_ATTRIBUTE_IGNORE_REQUEST_TIMEOUT |
+            NDIS_ATTRIBUTE_INTERMEDIATE_DRIVER |
+            NDIS_ATTRIBUTE_DESERIALIZE |
+            NDIS_ATTRIBUTE_NO_HALT_ON_SUSPEND,
+            0);
 
-		natpRegisterDevice();
-		Status = NDIS_STATUS_SUCCESS;
+        pAdapt->LastIndicatedStatus = NDIS_STATUS_MEDIA_CONNECT;
+        pAdapt->natmDeviceState = NdisDeviceStateD0;
+        pAdapt->natpDeviceState = NdisDeviceStateD0;
 
-	}__finally{
+        NdisAcquireSpinLock(&g_AdapterListLock);
+        InsertTailList(&g_AdapterListHead, &pAdapt->ctrl.ListEntry);
+        NdisReleaseSpinLock(&g_AdapterListLock);
 
-	}
+        natpRegisterDevice();
+        Status = NDIS_STATUS_SUCCESS;
 
-	ASSERT(pAdapt->MiniportInitPending == TRUE);
-	pAdapt->MiniportInitPending = FALSE;
-	NdisSetEvent(&pAdapt->MiniportInitEvent);
+    }
+    __finally {
 
-	*OpenErrorStatus = Status;
+    }
 
-	return Status;
+    ASSERT(pAdapt->MiniportInitPending == TRUE);
+    pAdapt->MiniportInitPending = FALSE;
+    NdisSetEvent(&pAdapt->MiniportInitEvent);
+
+    *OpenErrorStatus = Status;
+
+    return Status;
 }
 
 NDIS_STATUS
-	natmSendPassThrough(
-		IN NDIS_HANDLE  MiniportAdapterContext,
-		IN PNDIS_PACKET Packet,
-		IN FLT_PKT* pFltPkt
-		)
+natmSendPassThrough(
+    IN NDIS_HANDLE  MiniportAdapterContext,
+    IN PNDIS_PACKET Packet,
+    IN FLT_PKT* pFltPkt
+)
 {
-	PFILTER_ADAPTER pAdapt;
-	NDIS_STATUS Status;
-	PVOID MediaSpecificInfo = NULL;
-	ULONG MediaSpecificInfoSize = 0;
-	PNDIS_PACKET_STACK pStack;
-	BOOLEAN StackRoomLeft;
-	PNDIS_PACKET pNewPacket;
-	PNDIS_BUFFER pNewBuffer = NULL;
+    PFILTER_ADAPTER pAdapt;
+    NDIS_STATUS Status;
+    PVOID MediaSpecificInfo = NULL;
+    ULONG MediaSpecificInfoSize = 0;
+    PNDIS_PACKET_STACK pStack;
+    BOOLEAN StackRoomLeft;
+    PNDIS_PACKET pNewPacket;
+    PNDIS_BUFFER pNewBuffer = NULL;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	NdisAcquireSpinLock(&pAdapt->Lock);
-	if (pAdapt->natpDeviceState > NdisDeviceStateD0 || 
-		pAdapt->natmDeviceState > NdisDeviceStateD0)
-	{
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		return NDIS_STATUS_FAILURE;
-	}
-	NdisReleaseSpinLock(&pAdapt->Lock);
-    
-	pStack = NdisIMGetCurrentPacketStack(Packet, &StackRoomLeft);
-	if (NULL == pFltPkt && StackRoomLeft && pStack){
+    NdisAcquireSpinLock(&pAdapt->Lock);
+    if (pAdapt->natpDeviceState > NdisDeviceStateD0 ||
+        pAdapt->natmDeviceState > NdisDeviceStateD0)
+    {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        return NDIS_STATUS_FAILURE;
+    }
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-		ASSERT(pStack);
-		pStack->IMReserved[0] = (ULONG_PTR)NULL;
+    pStack = NdisIMGetCurrentPacketStack(Packet, &StackRoomLeft);
+    if (NULL == pFltPkt && StackRoomLeft && pStack) {
 
-		InterlockedIncrement(&pAdapt->SendPending);
+        ASSERT(pStack);
+        pStack->IMReserved[0] = (ULONG_PTR)NULL;
 
-		NdisSendPackets(
-				pAdapt->BindingHandle,
-				&Packet,
-				1
-			);
+        InterlockedIncrement(&pAdapt->SendPending);
 
-		return NDIS_STATUS_PENDING;
-	}
+        NdisSendPackets(
+            pAdapt->BindingHandle,
+            &Packet,
+            1
+        );
 
-	if(NULL == pFltPkt){
+        return NDIS_STATUS_PENDING;
+    }
 
-		NdisAllocatePacket(
-			&Status,
-			&pNewPacket,
-			pAdapt->SndPP1
-			);
+    if (NULL == pFltPkt) {
 
-		if (Status != NDIS_STATUS_SUCCESS){
+        NdisAllocatePacket(
+            &Status,
+            &pNewPacket,
+            pAdapt->SndPP1
+        );
 
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				Status
-				);
-			return Status;
-		}
+        if (Status != NDIS_STATUS_SUCCESS) {
 
-		*((PVOID*)pNewPacket->ProtocolReserved) = Packet;
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                Status
+            );
+            return Status;
+        }
 
-		pNewPacket->Private.Head = Packet->Private.Head;
-		pNewPacket->Private.Tail = Packet->Private.Tail;
+        *((PVOID*)pNewPacket->ProtocolReserved) = Packet;
 
-	}else{
+        pNewPacket->Private.Head = Packet->Private.Head;
+        pNewPacket->Private.Tail = Packet->Private.Tail;
 
-		ASSERT(pFltPkt->pBuf);
+    }
+    else {
 
-		NdisAllocatePacket(
-			&Status,
-			&pNewPacket,
-			pAdapt->SndPP2
-			);
+        ASSERT(pFltPkt->pBuf);
 
-		if (Status != NDIS_STATUS_SUCCESS){
+        NdisAllocatePacket(
+            &Status,
+            &pNewPacket,
+            pAdapt->SndPP2
+        );
 
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				Status
-				);
-			return Status;
-		}
+        if (Status != NDIS_STATUS_SUCCESS) {
 
-		*((PVOID*)pNewPacket->ProtocolReserved) = pFltPkt;
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                Status
+            );
+            return Status;
+        }
 
-		NdisAllocateBuffer(
-			&Status,
-			&pNewBuffer,
-			pAdapt->SndBP,
-			pFltPkt->pBuf,
-			pFltPkt->uLen
-			);
+        *((PVOID*)pNewPacket->ProtocolReserved) = pFltPkt;
 
-		if ( Status != NDIS_STATUS_SUCCESS ){
+        NdisAllocateBuffer(
+            &Status,
+            &pNewBuffer,
+            pAdapt->SndBP,
+            pFltPkt->pBuf,
+            pFltPkt->uLen
+        );
 
-			NdisReinitializePacket (pNewPacket);
-			NdisFreePacket (pNewPacket);
+        if (Status != NDIS_STATUS_SUCCESS) {
 
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				Status
-				);
-			return Status;
-		}
+            NdisReinitializePacket(pNewPacket);
+            NdisFreePacket(pNewPacket);
 
-		NdisChainBufferAtFront(pNewPacket, pNewBuffer );
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                Status
+            );
+            return Status;
+        }
 
-	}        
+        NdisChainBufferAtFront(pNewPacket, pNewBuffer);
 
-	NdisSetPacketFlags(pNewPacket,NdisGetPacketFlags(Packet));
-		
-	NdisMoveMemory(NDIS_OOB_DATA_FROM_PACKET(pNewPacket),
-                   NDIS_OOB_DATA_FROM_PACKET(Packet),
-                   sizeof(NDIS_PACKET_OOB_DATA));
+    }
 
-	NdisIMCopySendPerPacketInfo(pNewPacket, Packet);
-  
-	NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO(Packet,
-                                        &MediaSpecificInfo,
-                                        &MediaSpecificInfoSize);
+    NdisSetPacketFlags(pNewPacket, NdisGetPacketFlags(Packet));
 
-	if (MediaSpecificInfo || MediaSpecificInfoSize){
+    NdisMoveMemory(NDIS_OOB_DATA_FROM_PACKET(pNewPacket),
+        NDIS_OOB_DATA_FROM_PACKET(Packet),
+        sizeof(NDIS_PACKET_OOB_DATA));
 
-		NDIS_SET_PACKET_MEDIA_SPECIFIC_INFO(pNewPacket,
-                                            MediaSpecificInfo,
-                                            MediaSpecificInfoSize);
-	}
+    NdisIMCopySendPerPacketInfo(pNewPacket, Packet);
 
-	InterlockedIncrement(&pAdapt->SendPending);
-	NdisSendPackets(
-			pAdapt->BindingHandle,
-			&pNewPacket,
-			1
-			);
+    NDIS_GET_PACKET_MEDIA_SPECIFIC_INFO(Packet,
+        &MediaSpecificInfo,
+        &MediaSpecificInfoSize);
 
-	Status = NDIS_STATUS_PENDING;
-	return Status;
+    if (MediaSpecificInfo || MediaSpecificInfoSize) {
+
+        NDIS_SET_PACKET_MEDIA_SPECIFIC_INFO(pNewPacket,
+            MediaSpecificInfo,
+            MediaSpecificInfoSize);
+    }
+
+    InterlockedIncrement(&pAdapt->SendPending);
+    NdisSendPackets(
+        pAdapt->BindingHandle,
+        &pNewPacket,
+        1
+    );
+
+    Status = NDIS_STATUS_PENDING;
+    return Status;
 }
 
 void
-	natmSendPackets(
-		IN NDIS_HANDLE MiniportAdapterContext,
-		IN PPNDIS_PACKET PacketArray,
-		IN UINT NumberOfPackets
-		)
+natmSendPackets(
+    IN NDIS_HANDLE MiniportAdapterContext,
+    IN PPNDIS_PACKET PacketArray,
+    IN UINT NumberOfPackets
+)
 {
-	PFILTER_ADAPTER	pAdapt;
-	NDIS_STATUS Status;
-	UINT i;
-	PVOID MediaSpecificInfo = NULL;
-	UINT MediaSpecificInfoSize = 0;
-	FLT_PKT *pFltPkt;
+    PFILTER_ADAPTER	pAdapt;
+    NDIS_STATUS Status;
+    UINT i;
+    PVOID MediaSpecificInfo = NULL;
+    UINT MediaSpecificInfoSize = 0;
+    FLT_PKT *pFltPkt;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	for (i = 0; i < NumberOfPackets; i++){
+    for (i = 0; i < NumberOfPackets; i++) {
 
-		PNDIS_PACKET    Packet;
+        PNDIS_PACKET    Packet;
 
-		Packet = PacketArray[i];
+        Packet = PacketArray[i];
 
-		if (pAdapt->natmDeviceState > NdisDeviceStateD0){
+        if (pAdapt->natmDeviceState > NdisDeviceStateD0) {
 
-				NdisMSendComplete(
-					pAdapt->MiniportHandle,
-					Packet,
-					NDIS_STATUS_FAILURE
-					);
-				continue;
-		}
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                NDIS_STATUS_FAILURE
+            );
+            continue;
+        }
 
-		pFltPkt = AllocateFltPacket();
-		if(NULL == pFltPkt){
+        pFltPkt = AllocateFltPacket();
+        if (NULL == pFltPkt) {
 
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				NDIS_STATUS_FAILURE
-				);
-			continue;
-		}
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                NDIS_STATUS_FAILURE
+            );
+            continue;
+        }
 
-		if(!natbParsePacket(Packet, pFltPkt)){
+        if (!natbParsePacket(Packet, pFltPkt)) {
 
-			if(g_LogPktDrop) PrintFtlPkt("DROP ", pFltPkt, 0, TRUE);
+            if (g_LogPktDrop) PrintFtlPkt("DROP ", pFltPkt, 0, TRUE);
 
-			FreeFltPkt(pFltPkt);
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				NDIS_STATUS_FAILURE
-				);
-			continue;
-		}
+            FreeFltPkt(pFltPkt);
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                NDIS_STATUS_FAILURE
+            );
+            continue;
+        }
 
-		//
-		// Filter
-		//
-		if(!FilterPkt(&pAdapt->ctrl, pFltPkt, TRUE)){
+        //
+        // Filter
+        //
+        if (!FilterPkt(&pAdapt->ctrl, pFltPkt, TRUE)) {
 
-			if(g_LogPktDrop) PrintFtlPkt("DROP ", pFltPkt, 0, TRUE);
+            if (g_LogPktDrop) PrintFtlPkt("DROP ", pFltPkt, 0, TRUE);
 
-			FreeFltPkt(pFltPkt);
-			NdisMSendComplete(
-				pAdapt->MiniportHandle,
-				Packet,
-				NDIS_STATUS_FAILURE
-				);
-			continue;
-		}
+            FreeFltPkt(pFltPkt);
+            NdisMSendComplete(
+                pAdapt->MiniportHandle,
+                Packet,
+                NDIS_STATUS_FAILURE
+            );
+            continue;
+        }
 
-		//
-		// Translate
-		//
-		TranslatePktOutgoing(&pAdapt->ctrl, pFltPkt);
+        //
+        // Translate
+        //
+        TranslatePktOutgoing(&pAdapt->ctrl, pFltPkt);
 
-		if(g_LogPktPass) PrintFtlPkt("PASS ", pFltPkt, 0, TRUE);
+        if (g_LogPktPass) PrintFtlPkt("PASS ", pFltPkt, 0, TRUE);
 
-		if(NULL == pFltPkt->pBuf){
-			FreeFltPkt(pFltPkt);
-			pFltPkt = NULL;
-		}
+        if (NULL == pFltPkt->pBuf) {
+            FreeFltPkt(pFltPkt);
+            pFltPkt = NULL;
+        }
 
-	    natmSendPassThrough( MiniportAdapterContext, Packet, pFltPkt );
+        natmSendPassThrough(MiniportAdapterContext, Packet, pFltPkt);
 
-	} // for (i = 0; i < NumberOfPackets; i++){
+    } // for (i = 0; i < NumberOfPackets; i++){
 
 }
 
 NDIS_STATUS
-	natmQueryInformation(
-		IN NDIS_HANDLE MiniportAdapterContext,
-		IN NDIS_OID Oid,
-		IN PVOID InformationBuffer,
-		IN ULONG InformationBufferLength,
-		OUT PULONG BytesWritten,
-		OUT PULONG BytesNeeded
-		)
+natmQueryInformation(
+    IN NDIS_HANDLE MiniportAdapterContext,
+    IN NDIS_OID Oid,
+    IN PVOID InformationBuffer,
+    IN ULONG InformationBufferLength,
+    OUT PULONG BytesWritten,
+    OUT PULONG BytesNeeded
+)
 {
-	PFILTER_ADAPTER	pAdapt;
-	NDIS_STATUS Status = NDIS_STATUS_FAILURE;
+    PFILTER_ADAPTER	pAdapt;
+    NDIS_STATUS Status = NDIS_STATUS_FAILURE;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	if (Oid == OID_PNP_QUERY_POWER){
-		Status = NDIS_STATUS_SUCCESS;
-		goto finish;
-	}
+    if (Oid == OID_PNP_QUERY_POWER) {
+        Status = NDIS_STATUS_SUCCESS;
+        goto finish;
+    }
 
-	if (Oid == OID_GEN_SUPPORTED_GUIDS){
-		Status = NDIS_STATUS_NOT_SUPPORTED;
-		goto finish;
-	}
+    if (Oid == OID_GEN_SUPPORTED_GUIDS) {
+        Status = NDIS_STATUS_NOT_SUPPORTED;
+        goto finish;
+    }
 
-	if (Oid == OID_TCP_TASK_OFFLOAD){
-		Status = NDIS_STATUS_NOT_SUPPORTED;
-		goto finish;
-	}
+    if (Oid == OID_TCP_TASK_OFFLOAD) {
+        Status = NDIS_STATUS_NOT_SUPPORTED;
+        goto finish;
+    }
 
-	NdisAcquireSpinLock(&pAdapt->Lock);
-	if (pAdapt->UnbindingInProcess == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
-	NdisReleaseSpinLock(&pAdapt->Lock);
+    NdisAcquireSpinLock(&pAdapt->Lock);
+    if (pAdapt->UnbindingInProcess == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-	if (pAdapt->natmDeviceState > NdisDeviceStateD0){
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
+    if (pAdapt->natmDeviceState > NdisDeviceStateD0) {
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
 
-	pAdapt->IntReq.bLocalRequest = FALSE;
-	pAdapt->IntReq.nRequestStatus = NDIS_STATUS_PENDING;
+    pAdapt->IntReq.bLocalRequest = FALSE;
+    pAdapt->IntReq.nRequestStatus = NDIS_STATUS_PENDING;
 
-	pAdapt->IntReq.NdisRequest.RequestType = NdisRequestQueryInformation;
-	pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.Oid = Oid;
-	pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBuffer = InformationBuffer;
-	pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBufferLength = InformationBufferLength;
-	pAdapt->BytesNeeded = BytesNeeded;
-	pAdapt->BytesReadOrWritten = BytesWritten;
+    pAdapt->IntReq.NdisRequest.RequestType = NdisRequestQueryInformation;
+    pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.Oid = Oid;
+    pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBuffer = InformationBuffer;
+    pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBufferLength = InformationBufferLength;
+    pAdapt->BytesNeeded = BytesNeeded;
+    pAdapt->BytesReadOrWritten = BytesWritten;
 
-	NdisAcquireSpinLock(&pAdapt->Lock);
+    NdisAcquireSpinLock(&pAdapt->Lock);
 
-	if (pAdapt->UnbindingInProcess == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
+    if (pAdapt->UnbindingInProcess == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
 
-	if ((pAdapt->natpDeviceState > NdisDeviceStateD0) 
-		&& (pAdapt->StandingBy == FALSE)){
-		pAdapt->QueuedRequest = TRUE;
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_PENDING;
-		goto finish;
-	}
+    if ((pAdapt->natpDeviceState > NdisDeviceStateD0)
+        && (pAdapt->StandingBy == FALSE)) {
+        pAdapt->QueuedRequest = TRUE;
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_PENDING;
+        goto finish;
+    }
 
-	if (pAdapt->StandingBy == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
-	pAdapt->OutstandingRequests = TRUE;
+    if (pAdapt->StandingBy == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
+    pAdapt->OutstandingRequests = TRUE;
 
-	NdisReleaseSpinLock(&pAdapt->Lock);
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-	NdisRequest(
-		&Status,
-		pAdapt->BindingHandle,
-		&pAdapt->IntReq.NdisRequest
-		);
+    NdisRequest(
+        &Status,
+        pAdapt->BindingHandle,
+        &pAdapt->IntReq.NdisRequest
+    );
 
-	if (Status != NDIS_STATUS_PENDING){
-		natpRequestComplete(pAdapt, &pAdapt->IntReq.NdisRequest, Status);
-		Status = NDIS_STATUS_PENDING;
-	}
+    if (Status != NDIS_STATUS_PENDING) {
+        natpRequestComplete(pAdapt, &pAdapt->IntReq.NdisRequest, Status);
+        Status = NDIS_STATUS_PENDING;
+    }
 
 finish:
 
-	return Status;
+    return Status;
 }
 
 void
-	natmQueryPNPCapabilities(
-		IN OUT PFILTER_ADAPTER	pAdapt,
-		OUT PNDIS_STATUS	pStatus
-		)
+natmQueryPNPCapabilities(
+    IN OUT PFILTER_ADAPTER	pAdapt,
+    OUT PNDIS_STATUS	pStatus
+)
 {
-	PNDIS_PNP_CAPABILITIES			pPNPCapabilities;
-	PNDIS_PM_WAKE_UP_CAPABILITIES	pPMstruct;
+    PNDIS_PNP_CAPABILITIES			pPNPCapabilities;
+    PNDIS_PM_WAKE_UP_CAPABILITIES	pPMstruct;
 
-	if (pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBufferLength >= sizeof(NDIS_PNP_CAPABILITIES)){
-		pPNPCapabilities = (PNDIS_PNP_CAPABILITIES)(pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBuffer);
+    if (pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBufferLength >= sizeof(NDIS_PNP_CAPABILITIES)) {
+        pPNPCapabilities = (PNDIS_PNP_CAPABILITIES)(pAdapt->IntReq.NdisRequest.DATA.QUERY_INFORMATION.InformationBuffer);
 
-		pPMstruct= & pPNPCapabilities->WakeUpCapabilities;
-		pPMstruct->MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
-		pPMstruct->MinPatternWakeUp = NdisDeviceStateUnspecified;
-		pPMstruct->MinLinkChangeWakeUp = NdisDeviceStateUnspecified;
-		*pAdapt->BytesReadOrWritten = sizeof(NDIS_PNP_CAPABILITIES);
-		*pAdapt->BytesNeeded = 0;
+        pPMstruct = &pPNPCapabilities->WakeUpCapabilities;
+        pPMstruct->MinMagicPacketWakeUp = NdisDeviceStateUnspecified;
+        pPMstruct->MinPatternWakeUp = NdisDeviceStateUnspecified;
+        pPMstruct->MinLinkChangeWakeUp = NdisDeviceStateUnspecified;
+        *pAdapt->BytesReadOrWritten = sizeof(NDIS_PNP_CAPABILITIES);
+        *pAdapt->BytesNeeded = 0;
 
 
-		pAdapt->natmDeviceState = NdisDeviceStateD0;
-		pAdapt->natpDeviceState = NdisDeviceStateD0;
+        pAdapt->natmDeviceState = NdisDeviceStateD0;
+        pAdapt->natpDeviceState = NdisDeviceStateD0;
 
-		*pStatus = NDIS_STATUS_SUCCESS;
-	}else{
-		*pAdapt->BytesNeeded= sizeof(NDIS_PNP_CAPABILITIES);
-		*pStatus = NDIS_STATUS_RESOURCES;
-	}
+        *pStatus = NDIS_STATUS_SUCCESS;
+    }
+    else {
+        *pAdapt->BytesNeeded = sizeof(NDIS_PNP_CAPABILITIES);
+        *pStatus = NDIS_STATUS_RESOURCES;
+    }
 }
 
 
 NDIS_STATUS
-	natmSetInformation(
-		IN NDIS_HANDLE MiniportAdapterContext,
-		IN NDIS_OID Oid,
-		IN PVOID InformationBuffer,
-		IN ULONG InformationBufferLength,
-		OUT PULONG BytesRead,
-		OUT PULONG BytesNeeded
-		)
+natmSetInformation(
+    IN NDIS_HANDLE MiniportAdapterContext,
+    IN NDIS_OID Oid,
+    IN PVOID InformationBuffer,
+    IN ULONG InformationBufferLength,
+    OUT PULONG BytesRead,
+    OUT PULONG BytesNeeded
+)
 {
-	PFILTER_ADAPTER	pAdapt;
-	NDIS_STATUS Status;
+    PFILTER_ADAPTER	pAdapt;
+    NDIS_STATUS Status;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
-	Status = NDIS_STATUS_FAILURE;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    Status = NDIS_STATUS_FAILURE;
 
-	if (Oid == OID_PNP_SET_POWER){
-		natmProcessSetPowerOid(
-			&Status,
-			pAdapt,
-			InformationBuffer,
-			InformationBufferLength,
-			BytesRead,
-			BytesNeeded
-			);
-		goto finish;
-	}
+    if (Oid == OID_PNP_SET_POWER) {
+        natmProcessSetPowerOid(
+            &Status,
+            pAdapt,
+            InformationBuffer,
+            InformationBufferLength,
+            BytesRead,
+            BytesNeeded
+        );
+        goto finish;
+    }
 
-	NdisAcquireSpinLock(&pAdapt->Lock);
-	if (pAdapt->UnbindingInProcess == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
-	NdisReleaseSpinLock(&pAdapt->Lock);
+    NdisAcquireSpinLock(&pAdapt->Lock);
+    if (pAdapt->UnbindingInProcess == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-	if (pAdapt->natmDeviceState > NdisDeviceStateD0){
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
+    if (pAdapt->natmDeviceState > NdisDeviceStateD0) {
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
 
-	pAdapt->IntReq.bLocalRequest = FALSE;
-	pAdapt->IntReq.nRequestStatus = NDIS_STATUS_PENDING;		
+    pAdapt->IntReq.bLocalRequest = FALSE;
+    pAdapt->IntReq.nRequestStatus = NDIS_STATUS_PENDING;
 
-	pAdapt->IntReq.NdisRequest.RequestType = NdisRequestSetInformation;
-	pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.Oid = Oid;
-	pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.InformationBuffer = InformationBuffer;
-	pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.InformationBufferLength = InformationBufferLength;
-	pAdapt->BytesNeeded = BytesNeeded;
-	pAdapt->BytesReadOrWritten = BytesRead;
+    pAdapt->IntReq.NdisRequest.RequestType = NdisRequestSetInformation;
+    pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.Oid = Oid;
+    pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.InformationBuffer = InformationBuffer;
+    pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.InformationBufferLength = InformationBufferLength;
+    pAdapt->BytesNeeded = BytesNeeded;
+    pAdapt->BytesReadOrWritten = BytesRead;
 
-	NdisAcquireSpinLock(&pAdapt->Lock);     
-	if (pAdapt->UnbindingInProcess == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
+    NdisAcquireSpinLock(&pAdapt->Lock);
+    if (pAdapt->UnbindingInProcess == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
 
-	if ((pAdapt->natpDeviceState > NdisDeviceStateD0) 
-		&& (pAdapt->StandingBy == FALSE)){
-		pAdapt->QueuedRequest = TRUE;
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_PENDING;
-		goto finish;
-	}
+    if ((pAdapt->natpDeviceState > NdisDeviceStateD0)
+        && (pAdapt->StandingBy == FALSE)) {
+        pAdapt->QueuedRequest = TRUE;
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_PENDING;
+        goto finish;
+    }
 
-	if (pAdapt->StandingBy == TRUE){
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		Status = NDIS_STATUS_FAILURE;
-		goto finish;
-	}
-	pAdapt->OutstandingRequests = TRUE;
+    if (pAdapt->StandingBy == TRUE) {
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        Status = NDIS_STATUS_FAILURE;
+        goto finish;
+    }
+    pAdapt->OutstandingRequests = TRUE;
 
-	NdisReleaseSpinLock(&pAdapt->Lock);
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-	if(OID_TCP_TASK_OFFLOAD == Oid){
-		
-		Status = NDIS_STATUS_PENDING;
-		goto finish;
-	}
+    if (OID_TCP_TASK_OFFLOAD == Oid) {
 
-	NdisRequest(
-		&Status,
-		pAdapt->BindingHandle,
-		&pAdapt->IntReq.NdisRequest
-		);
+        Status = NDIS_STATUS_PENDING;
+        goto finish;
+    }
 
-	if (Status != NDIS_STATUS_PENDING){
-		*BytesRead = pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.BytesRead;
-		*BytesNeeded = pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.BytesNeeded;
-		pAdapt->OutstandingRequests = FALSE;
-	}
+    NdisRequest(
+        &Status,
+        pAdapt->BindingHandle,
+        &pAdapt->IntReq.NdisRequest
+    );
+
+    if (Status != NDIS_STATUS_PENDING) {
+        *BytesRead = pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.BytesRead;
+        *BytesNeeded = pAdapt->IntReq.NdisRequest.DATA.SET_INFORMATION.BytesNeeded;
+        pAdapt->OutstandingRequests = FALSE;
+    }
 
 finish:
 
-	return Status;
+    return Status;
 }
 
 
 VOID
-	natmProcessSetPowerOid(
-		IN OUT PNDIS_STATUS pNdisStatus,
-		IN PFILTER_ADAPTER pAdapt,
-		IN PVOID InformationBuffer,
-		IN ULONG InformationBufferLength,
-		OUT PULONG BytesRead,
-		OUT PULONG BytesNeeded
-		)
+natmProcessSetPowerOid(
+    IN OUT PNDIS_STATUS pNdisStatus,
+    IN PFILTER_ADAPTER pAdapt,
+    IN PVOID InformationBuffer,
+    IN ULONG InformationBufferLength,
+    OUT PULONG BytesRead,
+    OUT PULONG BytesNeeded
+)
 {
-	NDIS_DEVICE_POWER_STATE NewDeviceState;
+    NDIS_DEVICE_POWER_STATE NewDeviceState;
 
-	*pNdisStatus = NDIS_STATUS_FAILURE;
+    *pNdisStatus = NDIS_STATUS_FAILURE;
 
-	__try
-	{
-		if (InformationBufferLength < sizeof(NDIS_DEVICE_POWER_STATE)){
-			*pNdisStatus = NDIS_STATUS_INVALID_LENGTH;
-			__leave;
-		}
+    __try
+    {
+        if (InformationBufferLength < sizeof(NDIS_DEVICE_POWER_STATE)) {
+            *pNdisStatus = NDIS_STATUS_INVALID_LENGTH;
+            __leave;
+        }
 
-		NewDeviceState = (*(PNDIS_DEVICE_POWER_STATE)InformationBuffer);
+        NewDeviceState = (*(PNDIS_DEVICE_POWER_STATE)InformationBuffer);
 
-		if ((pAdapt->natmDeviceState > NdisDeviceStateD0) && (NewDeviceState != NdisDeviceStateD0)){
+        if ((pAdapt->natmDeviceState > NdisDeviceStateD0) && (NewDeviceState != NdisDeviceStateD0)) {
 
-			*pNdisStatus = NDIS_STATUS_FAILURE;
-			__leave;
-		}
+            *pNdisStatus = NDIS_STATUS_FAILURE;
+            __leave;
+        }
 
-		if (pAdapt->natmDeviceState == NdisDeviceStateD0 && NewDeviceState > NdisDeviceStateD0)
-			pAdapt->StandingBy = TRUE;
+        if (pAdapt->natmDeviceState == NdisDeviceStateD0 && NewDeviceState > NdisDeviceStateD0)
+            pAdapt->StandingBy = TRUE;
 
-		if (pAdapt->natmDeviceState > NdisDeviceStateD0 &&  NewDeviceState == NdisDeviceStateD0)
-			pAdapt->StandingBy = FALSE;
+        if (pAdapt->natmDeviceState > NdisDeviceStateD0 &&  NewDeviceState == NdisDeviceStateD0)
+            pAdapt->StandingBy = FALSE;
 
-		pAdapt->natmDeviceState = NewDeviceState;
+        pAdapt->natmDeviceState = NewDeviceState;
 
-		*pNdisStatus = NDIS_STATUS_SUCCESS;
+        *pNdisStatus = NDIS_STATUS_SUCCESS;
 
-	}
-	__finally{
-	}
+    }
+    __finally {
+    }
 
-	if (*pNdisStatus == NDIS_STATUS_SUCCESS){
+    if (*pNdisStatus == NDIS_STATUS_SUCCESS) {
 
-		if (pAdapt->StandingBy == FALSE){
-			if (pAdapt->LastIndicatedStatus != pAdapt->LatestUnIndicateStatus){
+        if (pAdapt->StandingBy == FALSE) {
+            if (pAdapt->LastIndicatedStatus != pAdapt->LatestUnIndicateStatus) {
 
-				NdisMIndicateStatus(
-					pAdapt->MiniportHandle,
-					pAdapt->LatestUnIndicateStatus,
-					(PVOID)NULL,
-					0
-					);
-				NdisMIndicateStatusComplete(pAdapt->MiniportHandle);
-				pAdapt->LastIndicatedStatus = pAdapt->LatestUnIndicateStatus;
-			}
-		}else
-			pAdapt->LatestUnIndicateStatus = pAdapt->LastIndicatedStatus;
-		*BytesRead = sizeof(NDIS_DEVICE_POWER_STATE);
-		*BytesNeeded = 0;
-	}else{
-		*BytesRead = 0;
-		*BytesNeeded = sizeof (NDIS_DEVICE_POWER_STATE);
-	}
-}
-
-VOID 
-	natmFreeBuffers (
-		IN OUT PNDIS_PACKET Packet
-		)
-{
-	UINT nDataSize, nBufferCount;
-	PNDIS_BUFFER pBuffer;
-
-	NdisQueryPacket(
-		(PNDIS_PACKET )Packet,
-		(PUINT )NULL,
-		(PUINT )&nBufferCount,
-		&pBuffer,
-		&nDataSize
-		);
-
-	while( nBufferCount-- > 0 ){
-		NdisUnchainBufferAtFront ( Packet, &pBuffer );
-		NdisFreeBuffer ( pBuffer );
-	}
+                NdisMIndicateStatus(
+                    pAdapt->MiniportHandle,
+                    pAdapt->LatestUnIndicateStatus,
+                    (PVOID)NULL,
+                    0
+                );
+                NdisMIndicateStatusComplete(pAdapt->MiniportHandle);
+                pAdapt->LastIndicatedStatus = pAdapt->LatestUnIndicateStatus;
+            }
+        }
+        else
+            pAdapt->LatestUnIndicateStatus = pAdapt->LastIndicatedStatus;
+        *BytesRead = sizeof(NDIS_DEVICE_POWER_STATE);
+        *BytesNeeded = 0;
+    }
+    else {
+        *BytesRead = 0;
+        *BytesNeeded = sizeof(NDIS_DEVICE_POWER_STATE);
+    }
 }
 
 VOID
-	natmReturnPacket(
-		IN NDIS_HANDLE MiniportAdapterContext,
-		IN PNDIS_PACKET	Packet
-		)
+natmFreeBuffers(
+    IN OUT PNDIS_PACKET Packet
+)
 {
-	PFILTER_ADAPTER pAdapt;
-	PNDIS_PACKET OrgPacket = NULL;
-	NDIS_HANDLE pPacketPool;
+    UINT nDataSize, nBufferCount;
+    PNDIS_BUFFER pBuffer;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    NdisQueryPacket(
+        (PNDIS_PACKET)Packet,
+        (PUINT)NULL,
+        (PUINT)&nBufferCount,
+        &pBuffer,
+        &nDataSize
+    );
 
-	pPacketPool = NdisGetPoolFromPacket( Packet );
+    while (nBufferCount-- > 0) {
+        NdisUnchainBufferAtFront(Packet, &pBuffer);
+        NdisFreeBuffer(pBuffer);
+    }
+}
 
-	if (pPacketPool == pAdapt->RcvPP1){
+VOID
+natmReturnPacket(
+    IN NDIS_HANDLE MiniportAdapterContext,
+    IN PNDIS_PACKET	Packet
+)
+{
+    PFILTER_ADAPTER pAdapt;
+    PNDIS_PACKET OrgPacket = NULL;
+    NDIS_HANDLE pPacketPool;
 
-		OrgPacket = *(PVOID*)Packet->MiniportReserved;
-		NdisFreePacket(Packet);
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	}else if (pPacketPool == pAdapt->RcvPP2){
+    pPacketPool = NdisGetPoolFromPacket(Packet);
 
-		FLT_PKT *pFltPkt = *(PVOID*)Packet->MiniportReserved;
+    if (pPacketPool == pAdapt->RcvPP1) {
 
-		ASSERT(pFltPkt);
+        OrgPacket = *(PVOID*)Packet->MiniportReserved;
+        NdisFreePacket(Packet);
 
-		OrgPacket = pFltPkt->pOrgPkt;
+    }
+    else if (pPacketPool == pAdapt->RcvPP2) {
 
-		ASSERT(OrgPacket);
+        FLT_PKT *pFltPkt = *(PVOID*)Packet->MiniportReserved;
 
-		natmFreeBuffers(Packet);
+        ASSERT(pFltPkt);
 
-		NdisFreePacket(Packet);
+        OrgPacket = pFltPkt->pOrgPkt;
 
-		FreeFltPkt(pFltPkt);
+        ASSERT(OrgPacket);
 
-	}else{
+        natmFreeBuffers(Packet);
 
-		NdisReturnPackets(&Packet, 1);
-		OrgPacket = NULL;
-	}
+        NdisFreePacket(Packet);
 
-	if ( NULL != OrgPacket)
-		NdisReturnPackets(&OrgPacket, 1);
+        FreeFltPkt(pFltPkt);
+
+    }
+    else {
+
+        NdisReturnPackets(&Packet, 1);
+        OrgPacket = NULL;
+    }
+
+    if (NULL != OrgPacket)
+        NdisReturnPackets(&OrgPacket, 1);
 }
 
 NDIS_STATUS
-	natmTransferData(
-		OUT PNDIS_PACKET Packet,
-		OUT PUINT BytesTransferred,
-		IN NDIS_HANDLE MiniportAdapterContext,
-		IN NDIS_HANDLE MiniportReceiveContext,
-		IN UINT ByteOffset,
-		IN UINT BytesToTransfer
-		)
+natmTransferData(
+    OUT PNDIS_PACKET Packet,
+    OUT PUINT BytesTransferred,
+    IN NDIS_HANDLE MiniportAdapterContext,
+    IN NDIS_HANDLE MiniportReceiveContext,
+    IN UINT ByteOffset,
+    IN UINT BytesToTransfer
+)
 {
-	PFILTER_ADAPTER pAdapt;
-	NDIS_STATUS Status;
+    PFILTER_ADAPTER pAdapt;
+    NDIS_STATUS Status;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	if (IsIMDeviceStateOn(pAdapt) == FALSE)
-		return NDIS_STATUS_FAILURE;
+    if (IsIMDeviceStateOn(pAdapt) == FALSE)
+        return NDIS_STATUS_FAILURE;
 
-	NdisTransferData(
-		&Status,
-		pAdapt->BindingHandle,
-		MiniportReceiveContext,
-		ByteOffset,
-		BytesToTransfer,
-		Packet,
-		BytesTransferred
-		);
+    NdisTransferData(
+        &Status,
+        pAdapt->BindingHandle,
+        MiniportReceiveContext,
+        ByteOffset,
+        BytesToTransfer,
+        Packet,
+        BytesTransferred
+    );
 
-	return Status;
+    return Status;
 }
 
 void
-	natmHalt(
-		IN NDIS_HANDLE MiniportAdapterContext
-		)
+natmHalt(
+    IN NDIS_HANDLE MiniportAdapterContext
+)
 {
-	PFILTER_ADAPTER pAdapt;
-	NDIS_STATUS Status;
+    PFILTER_ADAPTER pAdapt;
+    NDIS_STATUS Status;
 
-	pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
+    pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
-	NdisAcquireSpinLock(&g_AdapterListLock);
-	RemoveEntryList(&pAdapt->ctrl.ListEntry);
-	NdisReleaseSpinLock(&g_AdapterListLock);
+    NdisAcquireSpinLock(&g_AdapterListLock);
+    RemoveEntryList(&pAdapt->ctrl.ListEntry);
+    NdisReleaseSpinLock(&g_AdapterListLock);
 
-	natpDeregisterDevice();
+    natpDeregisterDevice();
 
-	if (pAdapt->BindingHandle != NULL){
+    if (pAdapt->BindingHandle != NULL) {
 
-		NdisResetEvent(&pAdapt->Event);
-		NdisCloseAdapter(&Status, pAdapt->BindingHandle);
+        NdisResetEvent(&pAdapt->Event);
+        NdisCloseAdapter(&Status, pAdapt->BindingHandle);
 
-		if (Status == NDIS_STATUS_PENDING){
-			NdisWaitEvent(&pAdapt->Event, 0);
-			Status = pAdapt->Status;
-		}
+        if (Status == NDIS_STATUS_PENDING) {
+            NdisWaitEvent(&pAdapt->Event, 0);
+            Status = pAdapt->Status;
+        }
 
-		pAdapt->BindingHandle = NULL;
-	}
+        pAdapt->BindingHandle = NULL;
+    }
 
-	natFreeAllItems(&pAdapt->ctrl);
-	natmFreeAllPacketPools(pAdapt);
+    natFreeAllItems(&pAdapt->ctrl);
+    natmFreeAllPacketPools(pAdapt);
 
-	if (pAdapt)
-	        NdisFreeSpinLock(&pAdapt->Lock);
+    if (pAdapt)
+        NdisFreeSpinLock(&pAdapt->Lock);
 
-	NdisFreeMemory(pAdapt, 0, 0);
+    NdisFreeMemory(pAdapt, 0, 0);
 }
 
 VOID
-	natmFreeAllPacketPools(
-		IN PFILTER_ADAPTER pAdapt
-		)
+natmFreeAllPacketPools(
+    IN PFILTER_ADAPTER pAdapt
+)
 {
-	if (pAdapt->RcvPP1 != NULL){
-		NdisFreePacketPool(pAdapt->RcvPP1);
-		pAdapt->RcvPP1 = NULL;
-	}
+    if (pAdapt->RcvPP1 != NULL) {
+        NdisFreePacketPool(pAdapt->RcvPP1);
+        pAdapt->RcvPP1 = NULL;
+    }
 
-	if (pAdapt->RcvPP2 != NULL){
-		NdisFreePacketPool(pAdapt->RcvPP2);
-		pAdapt->RcvPP2 = NULL;
-	}
+    if (pAdapt->RcvPP2 != NULL) {
+        NdisFreePacketPool(pAdapt->RcvPP2);
+        pAdapt->RcvPP2 = NULL;
+    }
 
-	if (pAdapt->SndPP1 != NULL){
-		NdisFreePacketPool(pAdapt->SndPP1);
-		pAdapt->SndPP1 = NULL;
-	}
+    if (pAdapt->SndPP1 != NULL) {
+        NdisFreePacketPool(pAdapt->SndPP1);
+        pAdapt->SndPP1 = NULL;
+    }
 
-	if (pAdapt->SndPP2 != NULL){
-		NdisFreePacketPool(pAdapt->SndPP2);
-		pAdapt->RcvPP2 = NULL;
-	}
+    if (pAdapt->SndPP2 != NULL) {
+        NdisFreePacketPool(pAdapt->SndPP2);
+        pAdapt->RcvPP2 = NULL;
+    }
 
-	if (pAdapt->SndBP != NULL){
-		NdisFreeBufferPool(pAdapt->SndBP);
-		pAdapt->SndBP = NULL;
-	}
+    if (pAdapt->SndBP != NULL) {
+        NdisFreeBufferPool(pAdapt->SndBP);
+        pAdapt->SndBP = NULL;
+    }
 
-	if (pAdapt->RcvBP != NULL){
-		NdisFreeBufferPool(pAdapt->RcvBP);
-		pAdapt->RcvBP = NULL;
-	}
+    if (pAdapt->RcvBP != NULL) {
+        NdisFreeBufferPool(pAdapt->RcvBP);
+        pAdapt->RcvBP = NULL;
+    }
 }
 
 VOID
 natmCancelSendPackets(
     IN NDIS_HANDLE MiniportAdapterContext,
     IN PVOID CancelId
-    )
+)
 {
     PFILTER_ADAPTER pAdapt = (PFILTER_ADAPTER)MiniportAdapterContext;
 
@@ -810,89 +817,89 @@ natmDevicePnPEvent(
     IN NDIS_DEVICE_PNP_EVENT    DevicePnPEvent,
     IN PVOID                    InformationBuffer,
     IN ULONG                    InformationBufferLength
-    )
+)
 {
     UNREFERENCED_PARAMETER(MiniportAdapterContext);
     UNREFERENCED_PARAMETER(DevicePnPEvent);
     UNREFERENCED_PARAMETER(InformationBuffer);
     UNREFERENCED_PARAMETER(InformationBufferLength);
-    
+
     return;
 }
 
 VOID
 natmAdapterShutdown(
     IN NDIS_HANDLE MiniportAdapterContext
-    )
+)
 {
     UNREFERENCED_PARAMETER(MiniportAdapterContext);
 }
 
 NDIS_STATUS
-	natmSendFltPacket(
-		IN PFILTER_COMMON_CONTROL_BLOCK pAdaptControl,
-		IN FLT_PKT* pFltPkt
-		)
+natmSendFltPacket(
+    IN PFILTER_COMMON_CONTROL_BLOCK pAdaptControl,
+    IN FLT_PKT* pFltPkt
+)
 {
-	PFILTER_ADAPTER		pAdapt;
-	NDIS_STATUS       Status;
-	PVOID         		MediaSpecificInfo = NULL;
-	ULONG         		MediaSpecificInfoSize = 0;
-	PNDIS_PACKET			pNewPacket;
-	PNDIS_BUFFER			pNewBuffer = NULL;
+    PFILTER_ADAPTER		pAdapt;
+    NDIS_STATUS       Status;
+    PVOID         		MediaSpecificInfo = NULL;
+    ULONG         		MediaSpecificInfoSize = 0;
+    PNDIS_PACKET			pNewPacket;
+    PNDIS_BUFFER			pNewBuffer = NULL;
 
-	pAdapt = CONTAINING_RECORD(pAdaptControl, FILTER_ADAPTER, ctrl);
+    pAdapt = CONTAINING_RECORD(pAdaptControl, FILTER_ADAPTER, ctrl);
 
-	NdisAcquireSpinLock(&pAdapt->Lock);
-	if (pAdapt->natpDeviceState > NdisDeviceStateD0 || 
-		pAdapt->natmDeviceState > NdisDeviceStateD0){
+    NdisAcquireSpinLock(&pAdapt->Lock);
+    if (pAdapt->natpDeviceState > NdisDeviceStateD0 ||
+        pAdapt->natmDeviceState > NdisDeviceStateD0) {
 
-		ASSERT(FALSE);
-		NdisReleaseSpinLock(&pAdapt->Lock);
-		return NDIS_STATUS_FAILURE;
-	}
-	NdisReleaseSpinLock(&pAdapt->Lock);
+        ASSERT(FALSE);
+        NdisReleaseSpinLock(&pAdapt->Lock);
+        return NDIS_STATUS_FAILURE;
+    }
+    NdisReleaseSpinLock(&pAdapt->Lock);
 
-	ASSERT(pFltPkt->pBuf);
+    ASSERT(pFltPkt->pBuf);
 
-	NdisAllocatePacket(
-		&Status,
-		&pNewPacket,
-		pAdapt->SndPP2
-		);
+    NdisAllocatePacket(
+        &Status,
+        &pNewPacket,
+        pAdapt->SndPP2
+    );
 
-	if (NDIS_STATUS_SUCCESS != Status)
-		return Status;
+    if (NDIS_STATUS_SUCCESS != Status)
+        return Status;
 
-	*((PVOID*)pNewPacket->ProtocolReserved) = pFltPkt;
+    *((PVOID*)pNewPacket->ProtocolReserved) = pFltPkt;
 
-	NdisAllocateBuffer(
-		&Status,
-		&pNewBuffer,
-		pAdapt->SndBP,
-		pFltPkt->pBuf,
-		pFltPkt->uLen
-		);
+    NdisAllocateBuffer(
+        &Status,
+        &pNewBuffer,
+        pAdapt->SndBP,
+        pFltPkt->pBuf,
+        pFltPkt->uLen
+    );
 
-	if (NDIS_STATUS_SUCCESS != Status){
+    if (NDIS_STATUS_SUCCESS != Status) {
 
-		ASSERT(FALSE);
+        ASSERT(FALSE);
 
-		NdisReinitializePacket (pNewPacket);
-		NdisFreePacket (pNewPacket);
-		return Status;
-	}
+        NdisReinitializePacket(pNewPacket);
+        NdisFreePacket(pNewPacket);
+        return Status;
+    }
 
-	NdisChainBufferAtFront(pNewPacket, pNewBuffer);
+    NdisChainBufferAtFront(pNewPacket, pNewBuffer);
 
-	NdisSetPacketFlags(pNewPacket, NDIS_FLAGS_DONT_LOOPBACK);
+    NdisSetPacketFlags(pNewPacket, NDIS_FLAGS_DONT_LOOPBACK);
 
-	InterlockedIncrement(&pAdapt->SendPending);
-	NdisSendPackets(
-			pAdapt->BindingHandle,
-			&pNewPacket,
-			1
-			);
+    InterlockedIncrement(&pAdapt->SendPending);
+    NdisSendPackets(
+        pAdapt->BindingHandle,
+        &pNewPacket,
+        1
+    );
 
     return NDIS_STATUS_SUCCESS;
 }

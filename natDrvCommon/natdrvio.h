@@ -58,53 +58,53 @@
 
 #pragma pack(push,1)
 
-typedef struct _NATDRV_IO_INIT{
-	ULONGLONG uMacAddr;
-	ULONG bStarted;
-	ULONG bFiltered;
+typedef struct _NATDRV_IO_INIT {
+    ULONGLONG uMacAddr;
+    ULONG bStarted;
+    ULONG bFiltered;
 }NATDRV_IO_INIT;
 
-typedef struct _NATDRV_IO_FW_RULE{
+typedef struct _NATDRV_IO_FW_RULE {
 
-	ULONGLONG uMacAddr;
-	ULONG uPrvIpAddr;
-	ULONG uPrvMask;
-	ULONG uPubIpAddr;
-	ULONG uPubMask;
-	ULONG uProtocol;
-	ULONG uPort;
-	ULONG uOut;
+    ULONGLONG uMacAddr;
+    ULONG uPrvIpAddr;
+    ULONG uPrvMask;
+    ULONG uPubIpAddr;
+    ULONG uPubMask;
+    ULONG uProtocol;
+    ULONG uPort;
+    ULONG uOut;
 
 }NATDRV_IO_FW_RULE;
 
-typedef struct _NATDRV_IO_NAT_ENTRY{
+typedef struct _NATDRV_IO_NAT_ENTRY {
 
-	ULONGLONG uMacAddr;
-	ULONG uPrvIpAddr;
-	ULONG uPubIpAddr;
+    ULONGLONG uMacAddr;
+    ULONG uPrvIpAddr;
+    ULONG uPubIpAddr;
 
 }NATDRV_IO_NAT_ENTRY;
 
 
 #pragma pack(pop)
 
-BOOLEAN 
-	natbOpenFile();
+BOOLEAN
+natbOpenFile();
 
-void 
-	natvCloseFile();
+void
+natvCloseFile();
 
-BOOLEAN 
-	natbInit(NATDRV_IO_INIT *pInit);
+BOOLEAN
+natbInit(NATDRV_IO_INIT *pInit);
 
-BOOLEAN 
-	natbAddNATEntry(NATDRV_IO_NAT_ENTRY *pNatEntry);
+BOOLEAN
+natbAddNATEntry(NATDRV_IO_NAT_ENTRY *pNatEntry);
 
-BOOLEAN 
-	natbAddFirewallRule(NATDRV_IO_FW_RULE *pRule);
+BOOLEAN
+natbAddFirewallRule(NATDRV_IO_FW_RULE *pRule);
 
-BOOLEAN 
-	natbRelease();
+BOOLEAN
+natbRelease();
 
 
 #endif // _NATDRV_DRV_IO_HEADER_

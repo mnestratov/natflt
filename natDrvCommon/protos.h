@@ -22,13 +22,13 @@
 
 
 #ifndef ETHERNET_TYPE_IP
-	#define ETHERNET_TYPE_IP		0x0800
-	#define ETHERNET_TYPE_ARP		0x0806
-	#define ETHERNET_TYPE_IPV6		0x86dd
+#define ETHERNET_TYPE_IP		0x0800
+#define ETHERNET_TYPE_ARP		0x0806
+#define ETHERNET_TYPE_IPV6		0x86dd
 
-	#define ETHERNET_TYPE_IP_NET	0x0008
-	#define ETHERNET_TYPE_ARP_NET		  0x0608
-	#define ETHERNET_TYPE_IPV6_NET        0xdd86
+#define ETHERNET_TYPE_IP_NET	0x0008
+#define ETHERNET_TYPE_ARP_NET		  0x0608
+#define ETHERNET_TYPE_IPV6_NET        0xdd86
 #endif
 
 #define ETHER_ADDR_LEN          6
@@ -54,27 +54,27 @@
 
 typedef struct _ETH_HDR
 {
-	unsigned char ether_dst[6];
-	unsigned char ether_src[6];
-	unsigned short ether_type;
+    unsigned char ether_dst[6];
+    unsigned char ether_src[6];
+    unsigned short ether_type;
 } ETH_HDR;
 
 typedef struct _ARP_HDR
 {
-	unsigned short ar_hrd;     
-	unsigned short ar_pro;     
-	unsigned char ar_hln;      
-	unsigned char ar_pln;      
-	unsigned short ar_op;      
+    unsigned short ar_hrd;
+    unsigned short ar_pro;
+    unsigned char ar_hln;
+    unsigned char ar_pln;
+    unsigned short ar_op;
 } ARP_HDR;
 
 typedef struct _ETH_ARP
 {
-	ARP_HDR ea_hdr;     
-	unsigned char arp_sha[6];
-	unsigned char arp_spa[4];
-	unsigned char arp_tha[6];
-	unsigned char arp_tpa[4];
+    ARP_HDR ea_hdr;
+    unsigned char arp_sha[6];
+    unsigned char arp_spa[4];
+    unsigned char arp_tha[6];
+    unsigned char arp_tpa[4];
 } ETH_ARP;
 
 #define IPPROTO_IP              0             
@@ -84,16 +84,16 @@ typedef struct _ETH_ARP
 
 typedef struct _IP_HDR
 {
-    unsigned char ip_hlen:4, ip_ver:4;
-    unsigned char ip_tos;        
-    unsigned short ip_len;       
-    unsigned short ip_id;        
-    unsigned short ip_off;       
-    unsigned char ip_ttl;        
-    unsigned char ip_proto;      
-    unsigned short ip_csum;      
-    unsigned long ip_src; 
-    unsigned long ip_dst;  
+    unsigned char ip_hlen : 4, ip_ver : 4;
+    unsigned char ip_tos;
+    unsigned short ip_len;
+    unsigned short ip_id;
+    unsigned short ip_off;
+    unsigned char ip_ttl;
+    unsigned char ip_proto;
+    unsigned short ip_csum;
+    unsigned long ip_src;
+    unsigned long ip_dst;
 } IP_HDR;
 
 typedef struct _TCP_HDR
@@ -102,11 +102,11 @@ typedef struct _TCP_HDR
     unsigned short th_dport;
     unsigned long th_seq;
     unsigned long th_ack;
-    unsigned char th_x2:4, th_off:4;
+    unsigned char th_x2 : 4, th_off : 4;
     unsigned char th_flags;
-    unsigned short th_win;      
-    unsigned short th_sum;      
-    unsigned short th_urp;      
+    unsigned short th_win;
+    unsigned short th_sum;
+    unsigned short th_urp;
 
 } TCP_HDR;
 
@@ -134,10 +134,10 @@ typedef struct _TCP_HDR
 
 typedef struct _UDP_HDR
 {
-	unsigned short uh_sport;
-	unsigned short uh_dport;
-	unsigned short uh_len;
-	unsigned short uh_chk;
+    unsigned short uh_sport;
+    unsigned short uh_dport;
+    unsigned short uh_len;
+    unsigned short uh_chk;
 } UDP_HDR;
 
 #define ICMP_ECHOREPLY          0   
@@ -159,45 +159,45 @@ typedef struct _UDP_HDR
 
 #define s_icmp_id         icmp_hun.idseq.id
 
-typedef struct _ICMP_HDR{
+typedef struct _ICMP_HDR {
     unsigned char type;
     unsigned char code;
     unsigned short csum;
-    union{
-		unsigned char pptr;
+    union {
+        unsigned char pptr;
         unsigned long gwaddr;
 
-        struct idseq{
+        struct idseq {
             unsigned short id;
             unsigned short seq;
         } idseq;
 
         int sih_void;
 
-		struct pmtu{
+        struct pmtu {
             unsigned short ipm_void;
             unsigned short nextmtu;
         } pmtu;
 
-        struct rtradv{
+        struct rtradv {
             unsigned char num_addrs;
             unsigned char wpa;
             unsigned short lifetime;
         } rtradv;
     } icmp_hun;
 
-    union{
-        struct ts{
+    union {
+        struct ts {
             unsigned long otime;
             unsigned long rtime;
             unsigned long ttime;
         }ts;
-        
-        struct ih_ip{
+
+        struct ih_ip {
             IP_HDR *ip;
         } ip;
-        
-        struct ra_addr{
+
+        struct ra_addr {
             unsigned long addr;
             unsigned long preference;
         } radv;
@@ -212,12 +212,12 @@ typedef struct _ICMP_HDR{
 
 typedef struct _echoext
 {
-	unsigned short id;
-	unsigned short seqno;
+    unsigned short id;
+    unsigned short seqno;
 } echoext;
 
-typedef struct _IPv6_HDR{
-    unsigned char priority:4, ip_ver:4;
+typedef struct _IPv6_HDR {
+    unsigned char priority : 4, ip_ver : 4;
     unsigned char flow_label[3];
     unsigned short payload_len;
     unsigned char next_header;
@@ -226,49 +226,49 @@ typedef struct _IPv6_HDR{
     unsigned char dst_addr[16];
 }IPv6_HDR;
 
-typedef struct _ICMPv6_HDR{
-	unsigned char	type;
-	unsigned char	code;
-	unsigned short	checksum;
+typedef struct _ICMPv6_HDR {
+    unsigned char	type;
+    unsigned char	code;
+    unsigned short	checksum;
 }ICMPv6_HDR;
 
-typedef struct _ICMPv6_EchoRequestMsg{
-	ICMPv6_HDR		hdr;
-	unsigned short	id;
-	unsigned short	seq_num;
-	// data
-	
+typedef struct _ICMPv6_EchoRequestMsg {
+    ICMPv6_HDR		hdr;
+    unsigned short	id;
+    unsigned short	seq_num;
+    // data
+
 }ICMPv6_EchoRequestMsg;
 
-typedef struct _ICMPv6_NeighborSolicitationMsg{
-	ICMPv6_HDR		hdr;
-	unsigned long	reserved;
+typedef struct _ICMPv6_NeighborSolicitationMsg {
+    ICMPv6_HDR		hdr;
+    unsigned long	reserved;
     unsigned char	target_addr[16];
-	// Options
+    // Options
 }ICMPv6_NeighborSolicitationMsg;
 
-typedef struct _ICMPv6_NeighborAdvertiseMsg{
-	ICMPv6_HDR		hdr;
-	unsigned long	r:1;
-	unsigned long	s:1;
-	unsigned long	o:1;
-	unsigned long	reserved:29;
+typedef struct _ICMPv6_NeighborAdvertiseMsg {
+    ICMPv6_HDR		hdr;
+    unsigned long	r : 1;
+    unsigned long	s : 1;
+    unsigned long	o : 1;
+    unsigned long	reserved : 29;
     unsigned char	target_addr[16];
-	// Options
+    // Options
 }ICMPv6_NeighborAdvertiseMsg;
 
-typedef struct _ICMPv6_LinkLayerAddrOption{
-	unsigned char	type;
-	unsigned char	len;
-	unsigned char	macaddr[6];	
+typedef struct _ICMPv6_LinkLayerAddrOption {
+    unsigned char	type;
+    unsigned char	len;
+    unsigned char	macaddr[6];
 }ICMPv6_LinkLayerAddrOption;
 
-typedef struct _IPV6_pseudo_hdr{	
-	unsigned char src_addr[16];
-	unsigned char dst_addr[16];
-	unsigned long length;
-	unsigned long zero:24;
-	unsigned long next_hdr:8;		
+typedef struct _IPV6_pseudo_hdr {
+    unsigned char src_addr[16];
+    unsigned char dst_addr[16];
+    unsigned long length;
+    unsigned long zero : 24;
+    unsigned long next_hdr : 8;
 }IPV6_pseudo_hdr;
 
 

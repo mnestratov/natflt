@@ -34,328 +34,330 @@
 
 
 BOOLEAN
-	natbParsePacket(
-		IN PVOID Pkt,
-		IN OUT FLT_PKT* pFltPkt
-		)
+natbParsePacket(
+    IN PVOID Pkt,
+    IN OUT FLT_PKT* pFltPkt
+)
 {
-	PNDIS_PACKET pPkt = (PNDIS_PACKET)Pkt;
-	PNDIS_BUFFER pNdisBuf = NULL;
-	ULONG uPktLen	= 0;
-	ULONG uBufLen	= 0;
-	PUCHAR pAddress = NULL;
-	ULONG hlen			= 0;
-	ETH_HDR* pEthHdr;
-	UINT uNeedBytes	= 0;
-	BOOLEAN bOk = FALSE;
+    PNDIS_PACKET pPkt = (PNDIS_PACKET)Pkt;
+    PNDIS_BUFFER pNdisBuf = NULL;
+    ULONG uPktLen = 0;
+    ULONG uBufLen = 0;
+    PUCHAR pAddress = NULL;
+    ULONG hlen = 0;
+    ETH_HDR* pEthHdr;
+    UINT uNeedBytes = 0;
+    BOOLEAN bOk = FALSE;
 
-	if(NULL == pPkt){
+    if (NULL == pPkt) {
 
-		pEthHdr = pFltPkt->pBuf;
-		uBufLen = MAX_ETHER_SIZE;
-		uPktLen = pFltPkt->uLen;
-		pFltPkt->pData = NULL;
+        pEthHdr = pFltPkt->pBuf;
+        uBufLen = MAX_ETHER_SIZE;
+        uPktLen = pFltPkt->uLen;
+        pFltPkt->pData = NULL;
 
-	}else{
+    }
+    else {
 
-		NdisGetFirstBufferFromPacketSafe(
-			pPkt,
-			&pNdisBuf,
-			&pEthHdr,
-			&uBufLen,
-			&uPktLen,
-			NormalPagePriority
-			);
-			if(NULL == pEthHdr)
-				return FALSE;
-		pFltPkt->pOrgPkt = pPkt;
-	}
+        NdisGetFirstBufferFromPacketSafe(
+            pPkt,
+            &pNdisBuf,
+            &pEthHdr,
+            &uBufLen,
+            &uPktLen,
+            NormalPagePriority
+        );
+        if (NULL == pEthHdr)
+            return FALSE;
+        pFltPkt->pOrgPkt = pPkt;
+    }
 
-	if(uPktLen > MAX_ETHER_SIZE)
-		return FALSE;
-	
-	if(uPktLen <  ETHERNET_HEADER_LEN + IP_HEADER_LEN)
-		return FALSE;
+    if (uPktLen > MAX_ETHER_SIZE)
+        return FALSE;
 
-	if(uBufLen <  ETHERNET_HEADER_LEN)
-		return FALSE;
+    if (uPktLen < ETHERNET_HEADER_LEN + IP_HEADER_LEN)
+        return FALSE;
 
-	pFltPkt->uLen = uPktLen;
-	pFltPkt->pEth = pEthHdr;
+    if (uBufLen < ETHERNET_HEADER_LEN)
+        return FALSE;
 
-	switch(pEthHdr->ether_type){
-	case ETHERNET_TYPE_ARP_NET:
+    pFltPkt->uLen = uPktLen;
+    pFltPkt->pEth = pEthHdr;
 
-		if(uBufLen >= ETHERNET_HEADER_LEN + sizeof(ETH_ARP)){
+    switch (pEthHdr->ether_type) {
+    case ETHERNET_TYPE_ARP_NET:
 
-			pFltPkt->pArp = (ETH_ARP*)(pFltPkt->pEth + 1);
-			bOk = TRUE;
-			goto finish;
-		}
+        if (uBufLen >= ETHERNET_HEADER_LEN + sizeof(ETH_ARP)) {
 
-		if(uBufLen > ETHERNET_HEADER_LEN){
+            pFltPkt->pArp = (ETH_ARP*)(pFltPkt->pEth + 1);
+            bOk = TRUE;
+            goto finish;
+        }
 
-			goto finish;
-		}
+        if (uBufLen > ETHERNET_HEADER_LEN) {
 
-		GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
+            goto finish;
+        }
 
-		if(uBufLen < sizeof(ETH_ARP)){
-			goto finish;
-		}
+        GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
 
-		pFltPkt->pArp = (ETH_ARP*)(pAddress);
-		bOk = TRUE;
-		goto finish;
-			
-	case ETHERNET_TYPE_IP_NET:
+        if (uBufLen < sizeof(ETH_ARP)) {
+            goto finish;
+        }
 
-		if(uBufLen >= ETHERNET_HEADER_LEN + IP_HEADER_LEN){
+        pFltPkt->pArp = (ETH_ARP*)(pAddress);
+        bOk = TRUE;
+        goto finish;
 
-			pAddress = (PUCHAR)(pFltPkt->pEth + 1);
+    case ETHERNET_TYPE_IP_NET:
 
-		}else if(uBufLen > ETHERNET_HEADER_LEN){
+        if (uBufLen >= ETHERNET_HEADER_LEN + IP_HEADER_LEN) {
 
-			goto finish;
-		}
+            pAddress = (PUCHAR)(pFltPkt->pEth + 1);
 
-		uBufLen -= ETHERNET_HEADER_LEN;
+        }
+        else if (uBufLen > ETHERNET_HEADER_LEN) {
 
-		if(!uBufLen){
-			
-			GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
-		}
+            goto finish;
+        }
 
-		if(uBufLen < IP_HEADER_LEN){
+        uBufLen -= ETHERNET_HEADER_LEN;
 
-			goto finish;
-		}
-		
-		if(NULL == pAddress){
-			goto finish;
-		}
+        if (!uBufLen) {
 
-		if(!natCheckIpHeader(
-			(IP_HDR*)pAddress,
-			uPktLen - ETHERNET_HEADER_LEN,
-			&hlen)){
+            GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
+        }
 
-			goto finish;
-		}
-							
-		if(hlen > uBufLen){
+        if (uBufLen < IP_HEADER_LEN) {
 
-			goto finish;
-		}
-			
-		pFltPkt->pIp = (IP_HDR*)pAddress;
-		break;
+            goto finish;
+        }
 
-	default:
+        if (NULL == pAddress) {
+            goto finish;
+        }
 
-		bOk = TRUE;
-		goto finish;
-	}
+        if (!natCheckIpHeader(
+            (IP_HDR*)pAddress,
+            uPktLen - ETHERNET_HEADER_LEN,
+            &hlen)) {
 
-	uBufLen -= hlen;
-	
-	pAddress = (PUCHAR)pFltPkt->pIp + hlen;
+            goto finish;
+        }
 
-	switch (pFltPkt->pIp->ip_proto){
-	case IPPROTO_UDP:
-		uNeedBytes = sizeof(UDP_HDR);
-		break;
-		
-	case IPPROTO_TCP:
-		uNeedBytes = sizeof(TCP_HDR);
-		break;
-		
-	case IPPROTO_ICMP:
-		uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
-		break;
-		
-	default:
+        if (hlen > uBufLen) {
 
-		bOk = TRUE;
-		goto finish;
-	}
+            goto finish;
+        }
 
-	if(!uBufLen){
+        pFltPkt->pIp = (IP_HDR*)pAddress;
+        break;
 
-		GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
-	}
+    default:
 
-	if(uBufLen < uNeedBytes){
+        bOk = TRUE;
+        goto finish;
+    }
 
-		goto finish;
-	}
+    uBufLen -= hlen;
 
-	switch (pFltPkt->pIp->ip_proto){
-	case IPPROTO_UDP:
-		pFltPkt->pUdp = (UDP_HDR*)pAddress;
-		uNeedBytes = RtlUshortByteSwap(pFltPkt->pUdp->uh_len) - sizeof(UDP_HDR);
-		if(uNeedBytes>uPktLen){
-			goto finish;
-		}
-		hlen = sizeof(UDP_HDR);
-		pAddress = (PUCHAR)pFltPkt->pUdp + hlen;
-		break;
-		
-	case IPPROTO_TCP:
-		pFltPkt->pTcp = (TCP_HDR*)pAddress;
-		uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen + TCP_HDR_LEN(((TCP_HDR*)pAddress)));
-		if(uNeedBytes>uPktLen){
-			goto finish;
-		}
-		hlen = TCP_HDR_LEN(((TCP_HDR*)pAddress));
-		pAddress = (PUCHAR)pFltPkt->pTcp + hlen;
-		break;
-		
-	case IPPROTO_ICMP:
-		pFltPkt->pIcmp = (ICMP_HDR*)pAddress;
-		bOk = TRUE;
-		goto finish;
+    pAddress = (PUCHAR)pFltPkt->pIp + hlen;
 
-	default:
+    switch (pFltPkt->pIp->ip_proto) {
+    case IPPROTO_UDP:
+        uNeedBytes = sizeof(UDP_HDR);
+        break;
 
-		bOk = TRUE;
-		goto finish;
-	}
-	
-	uBufLen -= hlen;
+    case IPPROTO_TCP:
+        uNeedBytes = sizeof(TCP_HDR);
+        break;
 
-	if(uNeedBytes && !uBufLen){
+    case IPPROTO_ICMP:
+        uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen);
+        break;
 
-		GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
+    default:
 
-		if(uBufLen >= uNeedBytes){
+        bOk = TRUE;
+        goto finish;
+    }
 
-			pFltPkt->pData = (VOID*)pAddress;
-			bOk = TRUE;
-			goto finish;
-		}
-	}
+    if (!uBufLen) {
 
-	if(uBufLen < uNeedBytes){
+        GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
+    }
 
-		goto finish;
-	}
+    if (uBufLen < uNeedBytes) {
 
-	bOk = TRUE;
+        goto finish;
+    }
+
+    switch (pFltPkt->pIp->ip_proto) {
+    case IPPROTO_UDP:
+        pFltPkt->pUdp = (UDP_HDR*)pAddress;
+        uNeedBytes = RtlUshortByteSwap(pFltPkt->pUdp->uh_len) - sizeof(UDP_HDR);
+        if (uNeedBytes > uPktLen) {
+            goto finish;
+        }
+        hlen = sizeof(UDP_HDR);
+        pAddress = (PUCHAR)pFltPkt->pUdp + hlen;
+        break;
+
+    case IPPROTO_TCP:
+        pFltPkt->pTcp = (TCP_HDR*)pAddress;
+        uNeedBytes = uPktLen - (ETHERNET_HEADER_LEN + hlen + TCP_HDR_LEN(((TCP_HDR*)pAddress)));
+        if (uNeedBytes > uPktLen) {
+            goto finish;
+        }
+        hlen = TCP_HDR_LEN(((TCP_HDR*)pAddress));
+        pAddress = (PUCHAR)pFltPkt->pTcp + hlen;
+        break;
+
+    case IPPROTO_ICMP:
+        pFltPkt->pIcmp = (ICMP_HDR*)pAddress;
+        bOk = TRUE;
+        goto finish;
+
+    default:
+
+        bOk = TRUE;
+        goto finish;
+    }
+
+    uBufLen -= hlen;
+
+    if (uNeedBytes && !uBufLen) {
+
+        GET_NEXT_BUF(pNdisBuf, pAddress, uBufLen);
+
+        if (uBufLen >= uNeedBytes) {
+
+            pFltPkt->pData = (VOID*)pAddress;
+            bOk = TRUE;
+            goto finish;
+        }
+    }
+
+    if (uBufLen < uNeedBytes) {
+
+        goto finish;
+    }
+
+    bOk = TRUE;
 
 finish:
 
-	if(!bOk && pPkt){
+    if (!bOk && pPkt) {
 
-		if(CopyNdisPacketToFltPacket(pFltPkt)){
-			bOk = TRUE;
-		}
-	}
+        if (CopyNdisPacketToFltPacket(pFltPkt)) {
+            bOk = TRUE;
+        }
+    }
 
-	return bOk;
+    return bOk;
 }
 
 BOOLEAN
-	natCopyPacketData(
-		 IN PVOID Pkt,
-		 IN OUT PUCHAR lpBuffer,
-		 IN ULONG nNumberOfBytesToRead,
-		 IN ULONG nOffset,                
-		 IN PULONG lpNumberOfBytesRead,
-		 IN BOOLEAN bWirelessWan
-		 )
+natCopyPacketData(
+    IN PVOID Pkt,
+    IN OUT PUCHAR lpBuffer,
+    IN ULONG nNumberOfBytesToRead,
+    IN ULONG nOffset,
+    IN PULONG lpNumberOfBytesRead,
+    IN BOOLEAN bWirelessWan
+)
 {
-	PNDIS_PACKET Packet = (PNDIS_PACKET)Pkt;
-	PNDIS_BUFFER CurrentBuffer;
-	UINT nBufferCount, TotalPacketLength;
-	PUCHAR VirtualAddress;
-	UINT CurrentLength, CurrentOffset;
-	UINT AmountToMove;
+    PNDIS_PACKET Packet = (PNDIS_PACKET)Pkt;
+    PNDIS_BUFFER CurrentBuffer;
+    UINT nBufferCount, TotalPacketLength;
+    PUCHAR VirtualAddress;
+    UINT CurrentLength, CurrentOffset;
+    UINT AmountToMove;
 
-	*lpNumberOfBytesRead = 0;
+    *lpNumberOfBytesRead = 0;
 
-	NdisQueryPacket(
-		(PNDIS_PACKET )Packet,
-		(PUINT )NULL,    
-		(PUINT )&nBufferCount,
-		&CurrentBuffer,       
-		&TotalPacketLength
-		);
+    NdisQueryPacket(
+        (PNDIS_PACKET)Packet,
+        (PUINT)NULL,
+        (PUINT)&nBufferCount,
+        &CurrentBuffer,
+        &TotalPacketLength
+    );
 
-	NdisQueryBufferSafe(
-		CurrentBuffer,
-		&VirtualAddress,
-		&CurrentLength,
-		NormalPagePriority
-		);
+    NdisQueryBufferSafe(
+        CurrentBuffer,
+        &VirtualAddress,
+        &CurrentLength,
+        NormalPagePriority
+    );
 
-	if ( !VirtualAddress )
-		return FALSE;
+    if (!VirtualAddress)
+        return FALSE;
 
-	CurrentOffset = 0;
+    CurrentOffset = 0;
 
-	while( nOffset || nNumberOfBytesToRead ){
-		
-		while( !CurrentLength ){
-		
-			NdisGetNextBuffer(
-				CurrentBuffer,
-				&CurrentBuffer
-				);
+    while (nOffset || nNumberOfBytesToRead) {
 
-			if (!CurrentBuffer)
-				return TRUE;
+        while (!CurrentLength) {
 
-			NdisQueryBufferSafe(
-				CurrentBuffer,
-				&VirtualAddress,
-				&CurrentLength,
-				NormalPagePriority
-				);
-			if ( !VirtualAddress )
-				return FALSE;
+            NdisGetNextBuffer(
+                CurrentBuffer,
+                &CurrentBuffer
+            );
 
-			CurrentOffset = 0;
-		}
+            if (!CurrentBuffer)
+                return TRUE;
 
-		if( nOffset ){
-			
-			if( CurrentLength > nOffset )
-				CurrentOffset = nOffset;
-			else
-				CurrentOffset = CurrentLength;
+            NdisQueryBufferSafe(
+                CurrentBuffer,
+                &VirtualAddress,
+                &CurrentLength,
+                NormalPagePriority
+            );
+            if (!VirtualAddress)
+                return FALSE;
 
-			nOffset -= CurrentOffset;
-			CurrentLength -= CurrentOffset;
-		}
+            CurrentOffset = 0;
+        }
 
-		if( nOffset ) {
+        if (nOffset) {
 
-			CurrentLength = 0;
-			continue;
-		}
+            if (CurrentLength > nOffset)
+                CurrentOffset = nOffset;
+            else
+                CurrentOffset = CurrentLength;
 
-		if( !CurrentLength ) {
-			continue;
-		}
+            nOffset -= CurrentOffset;
+            CurrentLength -= CurrentOffset;
+        }
 
-		if (CurrentLength > nNumberOfBytesToRead)
-			AmountToMove = nNumberOfBytesToRead;
-		else
-			AmountToMove = CurrentLength;
+        if (nOffset) {
 
-		NdisMoveMemory(
-			lpBuffer,
-			&VirtualAddress[ CurrentOffset ],
-			AmountToMove
-			);
+            CurrentLength = 0;
+            continue;
+        }
 
-		lpBuffer += AmountToMove;
+        if (!CurrentLength) {
+            continue;
+        }
 
-		*lpNumberOfBytesRead +=AmountToMove;
-		nNumberOfBytesToRead -=AmountToMove;
-		CurrentLength = 0;
-	}
+        if (CurrentLength > nNumberOfBytesToRead)
+            AmountToMove = nNumberOfBytesToRead;
+        else
+            AmountToMove = CurrentLength;
 
-	return TRUE;
+        NdisMoveMemory(
+            lpBuffer,
+            &VirtualAddress[CurrentOffset],
+            AmountToMove
+        );
+
+        lpBuffer += AmountToMove;
+
+        *lpNumberOfBytesRead += AmountToMove;
+        nNumberOfBytesToRead -= AmountToMove;
+        CurrentLength = 0;
+    }
+
+    return TRUE;
 }
