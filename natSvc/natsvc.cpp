@@ -46,245 +46,246 @@ BOOLEAN bInitHostAdapters(BOOLEAN bStart, ULONGLONG *pCustomerMac);
 
 int main(int argc, char* argv[])
 {
-	SERVICE_TABLE_ENTRY svc_table[] = {{_T(NAT_SVC_NAME_STR),natvServiceMain},{NULL,NULL}};
+    SERVICE_TABLE_ENTRY svc_table[] = { {_T(NAT_SVC_NAME_STR),natvServiceMain},{NULL,NULL} };
 
-	if (argc >= 2){
+    if (argc >= 2) {
 
-		if (_tcscmp(argv[1],_T("console")) == 0)
-			natvServiceMain(argc,argv);
-	}else
-		StartServiceCtrlDispatcher(svc_table);
+        if (_tcscmp(argv[1], _T("console")) == 0)
+            natvServiceMain(argc, argv);
+    }
+    else
+        StartServiceCtrlDispatcher(svc_table);
 
-	return 0;
+    return 0;
 }
 
 VOID WINAPI natvServiceMain(DWORD dw_argc, LPTSTR *p_argv)
 {
-	ULONG err = -1;
-	BOOLEAN b_debug = (2 == dw_argc && _tcscmp(p_argv[1],_T("console")) == 0);
-	HANDLE h_single_instance = CreateMutex(NULL, FALSE, "{DE35821E-2317-5427-DA5F-45D9A456B8F0}");
-	if(NULL == h_single_instance)
-		return;
+    ULONG err = -1;
+    BOOLEAN b_debug = (2 == dw_argc && _tcscmp(p_argv[1], _T("console")) == 0);
+    HANDLE h_single_instance = CreateMutex(NULL, FALSE, "{DE35821E-2317-5427-DA5F-45D9A456B8F0}");
+    if (NULL == h_single_instance)
+        return;
 
-	if(WAIT_OBJECT_0 != WaitForSingleObject(h_single_instance,1000))
-		return;
+    if (WAIT_OBJECT_0 != WaitForSingleObject(h_single_instance, 1000))
+        return;
 
-	if (!b_debug){
+    if (!b_debug) {
 
-	    svc_status.dwServiceType        = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
-	    svc_status.dwCurrentState       = SERVICE_START_PENDING;
-		svc_status.dwControlsAccepted   = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
-		svc_status.dwWin32ExitCode      = 0;
-		svc_status.dwServiceSpecificExitCode = 0;
-		svc_status.dwCheckPoint         = 0;
-		svc_status.dwWaitHint           = 0;
-		svc_status_handle = RegisterServiceCtrlHandler(_T(NAT_SVC_NAME_STR),natvServiceCtrlHandler);
-		if ((SERVICE_STATUS_HANDLE)0 == svc_status_handle){
-			
-			goto finish;
-		}
+        svc_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS | SERVICE_INTERACTIVE_PROCESS;
+        svc_status.dwCurrentState = SERVICE_START_PENDING;
+        svc_status.dwControlsAccepted = SERVICE_ACCEPT_STOP | SERVICE_ACCEPT_SHUTDOWN;
+        svc_status.dwWin32ExitCode = 0;
+        svc_status.dwServiceSpecificExitCode = 0;
+        svc_status.dwCheckPoint = 0;
+        svc_status.dwWaitHint = 0;
+        svc_status_handle = RegisterServiceCtrlHandler(_T(NAT_SVC_NAME_STR), natvServiceCtrlHandler);
+        if ((SERVICE_STATUS_HANDLE)0 == svc_status_handle) {
 
-		svc_status.dwCurrentState = SERVICE_RUNNING;
-		SetServiceStatus(svc_status_handle,&svc_status);
-	}
+            goto finish;
+        }
 
-	do{
+        svc_status.dwCurrentState = SERVICE_RUNNING;
+        SetServiceStatus(svc_status_handle, &svc_status);
+    }
 
-		HWINSTA hWinsta;
-		HDESK hDesk;
+    do {
 
-		SECURITY_INFORMATION si = DACL_SECURITY_INFORMATION;
-		SECURITY_DESCRIPTOR sd;
+        HWINSTA hWinsta;
+        HDESK hDesk;
 
-		namp_log = new NATCL_LOG("natfw", "SVC", nam_cfg.sGetBinPath());
-		if(NULL == namp_log)
-			break;
+        SECURITY_INFORMATION si = DACL_SECURITY_INFORMATION;
+        SECURITY_DESCRIPTOR sd;
 
-		err = namp_log->eInitializeLog();
-		if(err)
-			break;
+        namp_log = new NATCL_LOG("natfw", "SVC", nam_cfg.sGetBinPath());
+        if (NULL == namp_log)
+            break;
 
-		LOG_GEN("");
-		LOG_GEN("Initializing...");
+        err = namp_log->eInitializeLog();
+        if (err)
+            break;
 
-		hWinsta = GetProcessWindowStation();
-		if(hWinsta == NULL){
-			LOG_ERROR("GetProcessWindowStation failed");
-			break;
-		}
+        LOG_GEN("");
+        LOG_GEN("Initializing...");
 
-		hDesk = GetThreadDesktop(GetCurrentThreadId());
-		if(hDesk == NULL){
-			LOG_ERROR("GetThreadDesktop failed");
-			break;
-		}
+        hWinsta = GetProcessWindowStation();
+        if (hWinsta == NULL) {
+            LOG_ERROR("GetProcessWindowStation failed");
+            break;
+        }
 
-		InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
-		SetSecurityDescriptorDacl(&sd, TRUE, (PACL)NULL, FALSE);
-		
-		if(!SetUserObjectSecurity(hWinsta, &si, &sd)){ 
-			LOG_ERROR("SetUserObjectSecurity failed");
-			break;
-		}
-		
-		if(!SetUserObjectSecurity(hDesk, &si, &sd)){
-			LOG_ERROR("SetUserObjectSecurity failed");
-			break;
-		}
+        hDesk = GetThreadDesktop(GetCurrentThreadId());
+        if (hDesk == NULL) {
+            LOG_ERROR("GetThreadDesktop failed");
+            break;
+        }
 
-		nath_app_exit_event = CreateEvent(NULL,TRUE,FALSE,NULL);
+        InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+        SetSecurityDescriptorDacl(&sd, TRUE, (PACL)NULL, FALSE);
 
-		//
-		// Create main thread
-		//
+        if (!SetUserObjectSecurity(hWinsta, &si, &sd)) {
+            LOG_ERROR("SetUserObjectSecurity failed");
+            break;
+        }
 
-		LOG_GEN("Initializing DONE");
+        if (!SetUserObjectSecurity(hDesk, &si, &sd)) {
+            LOG_ERROR("SetUserObjectSecurity failed");
+            break;
+        }
 
-		LOG_GEN("Services is STARTED");
+        nath_app_exit_event = CreateEvent(NULL, TRUE, FALSE, NULL);
 
-		natMainThread();
+        //
+        // Create main thread
+        //
 
-	}while(FALSE);
+        LOG_GEN("Initializing DONE");
 
-	LOG_GEN("Releasing resources...");
+        LOG_GEN("Services is STARTED");
 
-	if (!b_debug){
-		
-		svc_status.dwCurrentState = SERVICE_STOPPED;
-		if (!SetServiceStatus(svc_status_handle,&svc_status)){
-			
-			LOG_ERROR("SetServiceStatus failed");
-		}
-	}
+        natMainThread();
 
-	if(nath_app_exit_event)
-		CloseHandle(nath_app_exit_event);
+    } while (FALSE);
 
-	LOG_GEN("Releasing resources DONE");
+    LOG_GEN("Releasing resources...");
 
-	LOG_GEN("");
-	LOG_GEN("Service is STOPPED");
+    if (!b_debug) {
+
+        svc_status.dwCurrentState = SERVICE_STOPPED;
+        if (!SetServiceStatus(svc_status_handle, &svc_status)) {
+
+            LOG_ERROR("SetServiceStatus failed");
+        }
+    }
+
+    if (nath_app_exit_event)
+        CloseHandle(nath_app_exit_event);
+
+    LOG_GEN("Releasing resources DONE");
+
+    LOG_GEN("");
+    LOG_GEN("Service is STOPPED");
 
 finish:
 
-	if(h_single_instance){
+    if (h_single_instance) {
 
-		ReleaseMutex(h_single_instance);
-		CloseHandle(h_single_instance);
-	}
+        ReleaseMutex(h_single_instance);
+        CloseHandle(h_single_instance);
+    }
 
 }
 
 VOID WINAPI natvServiceCtrlHandler(DWORD dw_opcode)
 {
-	switch(dw_opcode){
-	case SERVICE_STOP_PENDING:
+    switch (dw_opcode) {
+    case SERVICE_STOP_PENDING:
 
-		LOG_GEN("Got request to stop service");
+        LOG_GEN("Got request to stop service");
 
-		svc_status.dwCurrentState = SERVICE_STOP_PENDING;
-		svc_status.dwWin32ExitCode = 0;
-		svc_status.dwWaitHint = 0;
-		if (!SetServiceStatus(svc_status_handle,&svc_status))
-		{
-			LOG_ERROR("SetServiceStatus failed");
-		}
+        svc_status.dwCurrentState = SERVICE_STOP_PENDING;
+        svc_status.dwWin32ExitCode = 0;
+        svc_status.dwWaitHint = 0;
+        if (!SetServiceStatus(svc_status_handle, &svc_status))
+        {
+            LOG_ERROR("SetServiceStatus failed");
+        }
 
-		if(nath_app_exit_event){
-			SetEvent(nath_app_exit_event);
-			Sleep(100);
-		}
+        if (nath_app_exit_event) {
+            SetEvent(nath_app_exit_event);
+            Sleep(100);
+        }
 
-		break;
+        break;
 
-	case SERVICE_CONTROL_STOP:
+    case SERVICE_CONTROL_STOP:
 
-		LOG_GEN("Got request to stop service");
+        LOG_GEN("Got request to stop service");
 
-		svc_status.dwCurrentState = SERVICE_STOPPED;
-		svc_status.dwWin32ExitCode = 0;
-		svc_status.dwWaitHint = 0;
-		if (!SetServiceStatus(svc_status_handle,&svc_status))
-		{
-			LOG_ERROR("SetServiceStatus failed");
-		}
+        svc_status.dwCurrentState = SERVICE_STOPPED;
+        svc_status.dwWin32ExitCode = 0;
+        svc_status.dwWaitHint = 0;
+        if (!SetServiceStatus(svc_status_handle, &svc_status))
+        {
+            LOG_ERROR("SetServiceStatus failed");
+        }
 
-		if(nath_app_exit_event){
-			SetEvent(nath_app_exit_event);
-			Sleep(100);
-		}
+        if (nath_app_exit_event) {
+            SetEvent(nath_app_exit_event);
+            Sleep(100);
+        }
 
-		break;
+        break;
 
-	case SERVICE_CONTROL_SHUTDOWN:
+    case SERVICE_CONTROL_SHUTDOWN:
 
-		LOG_GEN("Got request to shutdown");
+        LOG_GEN("Got request to shutdown");
 
-		if(nath_app_exit_event){
-			SetEvent(nath_app_exit_event);
-			Sleep(100);
-		}
+        if (nath_app_exit_event) {
+            SetEvent(nath_app_exit_event);
+            Sleep(100);
+        }
 
-		break;
+        break;
 
-	case SERVICE_INTERROGATE:
-		break;
-	}
+    case SERVICE_INTERROGATE:
+        break;
+    }
 }
 
 VOID natMainThread()
 {
-	ULONGLONG customerMac;
+    ULONGLONG customerMac;
 
-	if(!natbOpenFile()){
-		LOG_ERROR("natbOpenFile failed. DRIVER seems to be stopped");
-		return;
-	}
+    if (!natbOpenFile()) {
+        LOG_ERROR("natbOpenFile failed. DRIVER seems to be stopped");
+        return;
+    }
 
-	LOG_GEN("Driver was open successfully");
+    LOG_GEN("Driver was open successfully");
 
-	if(!bInitHostAdapters(FALSE, &customerMac)){
+    if (!bInitHostAdapters(FALSE, &customerMac)) {
 
-		LOG_ERROR("bInitHostAdapters failed");
-		goto finish;
-	}
+        LOG_ERROR("bInitHostAdapters failed");
+        goto finish;
+    }
 
-	if(!bLoadNatTable(&customerMac)){
+    if (!bLoadNatTable(&customerMac)) {
 
-		LOG_ERROR("bLoadNat failed");
-		goto finish;
-	}
+        LOG_ERROR("bLoadNat failed");
+        goto finish;
+    }
 
-	LOG_GEN("NAT table was initialized successfully");
+    LOG_GEN("NAT table was initialized successfully");
 
-	if(!bLoadFirewall(&customerMac)){
+    if (!bLoadFirewall(&customerMac)) {
 
-		LOG_ERROR("bLoadFirewall failed");
-		goto finish;
-	}
+        LOG_ERROR("bLoadFirewall failed");
+        goto finish;
+    }
 
-	LOG_GEN("Firewall rules were initialized successfully");
+    LOG_GEN("Firewall rules were initialized successfully");
 
-	if(!bInitHostAdapters(TRUE, NULL)){
+    if (!bInitHostAdapters(TRUE, NULL)) {
 
-		LOG_ERROR("bInitHostAdapters failed");
-		goto finish;
-	}
+        LOG_ERROR("bInitHostAdapters failed");
+        goto finish;
+    }
 
-	LOG_GEN("Driver was initialized successfully");
+    LOG_GEN("Driver was initialized successfully");
 
-	while(WAIT_TIMEOUT == WaitForSingleObject(nath_app_exit_event, 1000)){
+    while (WAIT_TIMEOUT == WaitForSingleObject(nath_app_exit_event, 1000)) {
 
-		//
-		// Do nothing. Wait for stop request
-		//
-	}
+        //
+        // Do nothing. Wait for stop request
+        //
+    }
 
 finish:
 
-	natbRelease();
+    natbRelease();
 
-	LOG_GEN("Driver was uninitialized successfully");
+    LOG_GEN("Driver was uninitialized successfully");
 
-	natvCloseFile();
+    natvCloseFile();
 }

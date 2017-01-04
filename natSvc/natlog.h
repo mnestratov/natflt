@@ -20,7 +20,7 @@
 #ifndef _NATLOG_HEADER_
 #define _NATLOG_HEADER_
 
-// LOGMASK values
+ // LOGMASK values
 #define NATLOG_ERROR	0x80000000	// Non maskable fatal error message
 #define NATLOG_GENERAL	0x40000000	// Non maskable general message
 #define NATLOG_WARNING	0x00000001	// Maskable warning messages (non-critical error)
@@ -29,44 +29,44 @@
 #define NATLOG_RULE		0x00000010	// Maskable rules messages
 #define NATLOG_DUMP		0x00000100	// Maskable memory dump
 
-class NATCL_LOG{
+class NATCL_LOG {
 
 public:
-	 NATCL_LOG(const CHAR s_app_name[], const CHAR s_prefix[],const CHAR s_bin_dir[]);
-	~NATCL_LOG();
+    NATCL_LOG(const CHAR s_app_name[], const CHAR s_prefix[], const CHAR s_bin_dir[]);
+    ~NATCL_LOG();
 
-	VOID		vSetLogDays(ULONG _log_days) {u_log_days = _log_days;}
-	ULONG		eInitializeLog();
-	VOID		vWriteLog(char* text, int msgtype);
-	const CHAR		*sGetBinDir() const {return s_bin_dir;}
-	const CHAR		*sGetFileName() const {return s_file_name;}
+    VOID		vSetLogDays(ULONG _log_days) { u_log_days = _log_days; }
+    ULONG		eInitializeLog();
+    VOID		vWriteLog(char* text, int msgtype);
+    const CHAR		*sGetBinDir() const { return s_bin_dir; }
+    const CHAR		*sGetFileName() const { return s_file_name; }
 
 private:
 
-	VOID	vChangeLog();
-	VOID	vMakeFileName();
-	VOID	vDeleteOldLogFiles();
-	INT		iGetDateByFilename(char *fname, WORD *year, WORD *month, WORD *day);
-	VOID	vFindFirstLeftDate(SYSTEMTIME* st);
-	INT		iCompareSYSTEMTIME(SYSTEMTIME time1, SYSTEMTIME time2);
+    VOID	vChangeLog();
+    VOID	vMakeFileName();
+    VOID	vDeleteOldLogFiles();
+    INT		iGetDateByFilename(char *fname, WORD *year, WORD *month, WORD *day);
+    VOID	vFindFirstLeftDate(SYSTEMTIME* st);
+    INT		iCompareSYSTEMTIME(SYSTEMTIME time1, SYSTEMTIME time2);
 
-	CHAR	s_file_name[MAX_PATH];
-	CHAR	s_suffix[50];
-	CHAR	s_appname[10];
-	FILE*	flog;
-	CRITICAL_SECTION cs;
+    CHAR	s_file_name[MAX_PATH];
+    CHAR	s_suffix[50];
+    CHAR	s_appname[10];
+    FILE*	flog;
+    CRITICAL_SECTION cs;
 
-	CHAR	s_bin_dir[MAX_PATH];
-	ULONG	u_log_days;
-	ULONG	u_log_msg_mask;
-	SYSTEMTIME time_stamp;
+    CHAR	s_bin_dir[MAX_PATH];
+    ULONG	u_log_days;
+    ULONG	u_log_msg_mask;
+    SYSTEMTIME time_stamp;
 
 };
 
 extern	VOID natvLogV(char* function, int line, ULONG mask, char* format, ...);
 extern	VOID natvLog(ULONG mask, char* format, ...);
 
-extern	VOID natvDumpBYTE(PVOID p_data, ULONG u_len); 
+extern	VOID natvDumpBYTE(PVOID p_data, ULONG u_len);
 extern	VOID natvDumpWORD(PVOID p_data, ULONG u_len);
 extern	VOID natvDumpDWORD(PVOID p_data, ULONG u_len);
 

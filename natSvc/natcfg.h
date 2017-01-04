@@ -25,58 +25,58 @@ class NATCL_CONFIG
 {
 public:
 
-	NATCL_CONFIG()
-	{
-		TCHAR tmpstr[MAX_PATH];
-		TCHAR * p;
+    NATCL_CONFIG()
+    {
+        TCHAR tmpstr[MAX_PATH];
+        TCHAR * p;
 
-		if(0 == GetModuleFileName(NULL,tmpstr, MAX_PATH)){
+        if (0 == GetModuleFileName(NULL, tmpstr, MAX_PATH)) {
 
-			memset(s_bin_path,0,sizeof(s_bin_path));
-			memset(s_exe_name,0,sizeof(s_exe_name));
-			return;
-		}
+            memset(s_bin_path, 0, sizeof(s_bin_path));
+            memset(s_exe_name, 0, sizeof(s_exe_name));
+            return;
+        }
 
-		for(p = tmpstr + _tcslen(tmpstr);p > tmpstr;p--)
-			if(*p == '\\')
-				break;
-
-
-		if(p == tmpstr){
-
-			memset(s_bin_path,0,sizeof(s_bin_path));
-			_tcscpy(s_exe_name,tmpstr);
-			return;
-		}
+        for (p = tmpstr + _tcslen(tmpstr); p > tmpstr; p--)
+            if (*p == '\\')
+                break;
 
 
-		*p++ = 0;
-		_tcscpy(s_bin_path,tmpstr);
-		_tcscpy(s_exe_name,p);
+        if (p == tmpstr) {
 
-	}
+            memset(s_bin_path, 0, sizeof(s_bin_path));
+            _tcscpy(s_exe_name, tmpstr);
+            return;
+        }
 
-	virtual ~NATCL_CONFIG() {}
 
-	const CHAR * sGetBinPath() const {return s_bin_path;}
-	const CHAR * sGetFullName() 
-	{
-		if(strlen(s_bin_path) + strlen(s_exe_name) + 1 < sizeof(s_full_name))
-			sprintf(s_full_name,"%s\\%s",s_bin_path,s_exe_name);
-		else
-			memset(s_full_name,0,sizeof(s_full_name));
+        *p++ = 0;
+        _tcscpy(s_bin_path, tmpstr);
+        _tcscpy(s_exe_name, p);
 
-		return s_full_name;
-	}
+    }
+
+    virtual ~NATCL_CONFIG() {}
+
+    const CHAR * sGetBinPath() const { return s_bin_path; }
+    const CHAR * sGetFullName()
+    {
+        if (strlen(s_bin_path) + strlen(s_exe_name) + 1 < sizeof(s_full_name))
+            sprintf(s_full_name, "%s\\%s", s_bin_path, s_exe_name);
+        else
+            memset(s_full_name, 0, sizeof(s_full_name));
+
+        return s_full_name;
+    }
 
 protected:
 
-	TCHAR s_bin_path[MAX_PATH];
-	TCHAR s_exe_name[100];
+    TCHAR s_bin_path[MAX_PATH];
+    TCHAR s_exe_name[100];
 
 private:
 
-	TCHAR s_full_name[MAX_PATH];
+    TCHAR s_full_name[MAX_PATH];
 
 };
 
