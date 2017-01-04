@@ -1,21 +1,20 @@
 [version]
-Signature   	= "$Windows NT$"
+Signature   = "$Windows NT$"
 Class     	= NetService
-ClassGUID  	= {4D36E974-E325-11CE-BFC1-08002BE10318}
+ClassGUID  = {4D36E974-E325-11CE-BFC1-08002BE10318}
+CatalogFile     = natdrv6.cat
+
 Provider    	= %winkd%
-DriverVer   	= 09/23/2013, 1.0.0.1
+DriverVer   = 01/04/2017, 2.0
 
 [Manufacturer]
-%winkd% = winkd,NTx86
+%winkd% = winkd,NTx86,NTamd64
 
 [winkd.NTx86]
 %natdrv6_Desc%=Install_natdrv6, winkd_natdrv6
 
-[winkd.NTia64]
-%ndisrd_Desc%=Install_natdrv6, winkd_natdrv6
-
 [winkd.NTamd64]
-%ndisrd_Desc%=Install_natdrv6, winkd_natdrv6
+%natdrv6_Desc%=Install_natdrv6, winkd_natdrv6
 
 
 ;-------------------------------------------------------------------------
