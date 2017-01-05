@@ -19,7 +19,7 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
-#include <winsock2.h>
+#include <Ws2tcpip.h>
 #include <wtypes.h>
 #include <io.h>
 #include <stdio.h>
@@ -95,13 +95,13 @@ bLoadNatTable(ULONGLONG *pCustomerMac)
             continue;
         }
 
-        if (INADDR_NONE == (nat_entry.uPrvIpAddr = inet_addr(prvIpStr))) {
+        if (1 != inet_pton(AF_INET, prvIpStr, &nat_entry.PrvIpAddr)) {
 
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
 
-        if (INADDR_NONE == (nat_entry.uPubIpAddr = inet_addr(pubIpStr))) {
+        if (1 != inet_pton(AF_INET, pubIpStr, &nat_entry.PubIpAddr)) {
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
@@ -221,13 +221,13 @@ bLoadFirewall(ULONGLONG *pCustomerMac)
         }
         fw_entry.uPubMask = uOnesToMask(fw_entry.uPubMask);
 
-        if (INADDR_NONE == (fw_entry.uPrvIpAddr = inet_addr(prvIpStr))) {
+        if (1 != inet_pton(AF_INET, prvIpStr, &fw_entry.PrvIpAddr)) {
 
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
 
-        if (INADDR_NONE == (fw_entry.uPubIpAddr = inet_addr(pubIpStr))) {
+        if (1 != inet_pton(AF_INET, pubIpStr, &fw_entry.PubIpAddr)) {
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
