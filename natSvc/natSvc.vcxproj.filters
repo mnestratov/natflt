@@ -28,9 +28,6 @@
     <ClInclude Include="natcfg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\natDrv\natdrvio.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="natlog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
