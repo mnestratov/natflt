@@ -19,6 +19,9 @@ natSvc/Debug/
 natSvc/Release/
 natSvc/natSvc.ncb
 natSvc/natSvc.suo
+natSvc/natSvc.vcxproj.user
+natSvc/natSvc.VC.db
+natSvc/natSvc.VC.VC.opendb
 out
 
 # Build results
