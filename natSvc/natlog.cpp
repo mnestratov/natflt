@@ -187,7 +187,7 @@ void NATCL_LOG::vDeleteOldLogFiles()
     char		filename[MAX_PATH];
     SYSTEMTIME	st, fst;
     char		tmpstr[300];
-    long		shandle;
+    size_t	    shandle;
     int			rc = 0;
 
     GetLocalTime(&st);
@@ -262,7 +262,7 @@ void NATCL_LOG::vWriteLog(char* text, int msgtype)
             return;
         }
 
-        INT i_str_len;
+        size_t i_str_len;
 
         switch (msgtype)
         {
