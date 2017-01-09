@@ -20,7 +20,7 @@
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{EE7398C0-5DBD-4A3B-9491-EF535F73E532}</ProjectGuid>
-    <RootNamespace>netgw</RootNamespace>
+    <RootNamespace>natdrv6</RootNamespace>
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
   </PropertyGroup>
