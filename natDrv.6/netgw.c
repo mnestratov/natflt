@@ -703,8 +703,7 @@ FilterSendNetBufferLists(
 
         if (!filterSendReceiveNBL(pAdapter, pList2Send, PortNumber, SendFlags, TRUE)) {
             NdisFSendNetBufferListsComplete(pAdapter->FilterHandle, pList2Send, bDispatchLevel ? NDIS_SEND_COMPLETE_FLAGS_DISPATCH_LEVEL : 0);
-        }
-        else {
+        } else {
             if (pFirstList2Send == NULL)
                 pFirstList2Send = pList2Send;
 
@@ -775,8 +774,7 @@ filterSendReceiveNBL(
 
             TranslatePktOutgoing(&pAdapter->ctrl, pFltPkt);
 
-        }
-        else {
+        } else {
 
             TranslatePktIncoming(&pAdapter->ctrl, pFltPkt);
 
