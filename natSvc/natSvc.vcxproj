@@ -55,22 +55,22 @@
     <_ProjectFileVersion>14.0.25431.1</_ProjectFileVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
-    <OutDir>..\OUT\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>.\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>.\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>false</LinkIncremental>
     <IntDir>.\$(Platform)\$(Configuration)\</IntDir>
-    <OutDir>..\OUT\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>.\$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
-    <OutDir>..\OUT\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>.\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>.\$(Platform)\$(Configuration)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\OUT\$(Platform)\$(Configuration)\</OutDir>
+    <OutDir>.\$(Platform)\$(Configuration)\</OutDir>
     <LinkIncremental>false</LinkIncremental>
     <IntDir>.\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
@@ -98,10 +98,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>psapi.lib;ws2_32.lib;iphlpapi.lib;shlwapi.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\OUT\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
+      <OutputFile>.\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\OUT\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
@@ -131,10 +131,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>psapi.lib;ws2_32.lib;iphlpapi.lib;shlwapi.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\OUT\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
+      <OutputFile>.\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\OUT\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
@@ -163,10 +163,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>psapi.lib;ws2_32.lib;iphlpapi.lib;shlwapi.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\OUT\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
+      <OutputFile>.\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\OUT\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
       <TargetMachine>MachineX86</TargetMachine>
     </Link>
@@ -197,10 +197,10 @@
     </ResourceCompile>
     <Link>
       <AdditionalDependencies>psapi.lib;ws2_32.lib;iphlpapi.lib;shlwapi.lib;Rpcrt4.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <OutputFile>..\OUT\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
+      <OutputFile>.\$(Platform)\$(Configuration)\natSvc.exe</OutputFile>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <ProgramDatabaseFile>..\OUT\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
+      <ProgramDatabaseFile>.\$(Platform)\$(Configuration)\natSvc.pdb</ProgramDatabaseFile>
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
