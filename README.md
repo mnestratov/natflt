@@ -34,15 +34,15 @@ NDIS5/NDIS6 based simple firewall and 1x1 NAT engine
 
 * How to make it possible to load a self signed driver
 
-  You need to do this just once on a destinaation machine
+  You need to do this just once on a target machine
 
   > bcdedit -set loadoptions DDISABLE_INTEGRITY_CHECKS
 
   > bcdedit -set TESTSIGNING ON
 
-* How to install generated certificate on a destination machine
+* How to install generated certificate on a target machine
 
-  You need to do this just once on a destinaation machine
+  You need to do this just once on a target machine
 
   > certmgr.exe /add Natdrv6.cer /s /r localMachine root
 
@@ -63,3 +63,29 @@ NDIS5/NDIS6 based simple firewall and 1x1 NAT engine
   > bcdedit /debug on
 
   > bcdedit /dbgsettings serial debugport:1 baudrate:115200
+
+Deployment
+----------
+
+Before you deploy a self signed driver, you must turn on test signing and install a certificate on the target computer as described above
+
+Natdrv6 is installed as a service. To install it, do the following:
+
+1.  Prepare an installation directory on the target computer and copy these files from the host computer into the directory:
+```
+    natdrv6.cat
+    natdrv6.inf
+    natdrv6.sys
+    Natdrv6.cer
+    natSvc.exe
+    firewall.ini
+    nat1x1.ini
+    installsvc.cmd
+
+```
+2.  Open **Windows Settings**.
+3.  Click **Network and Internet** then click **Change Adapter Options** and click the connection listed under **Connections**: and click **Properties**.
+4.  Click **Install**, then **Service**, then **Add**, then **Have Disk**.
+5.  Browse to the installation directory. Highlight the natdrv6.inf file and click **Open**, then click OK. Highlight **NAT/Firewall Filter Driver** in a list of Network Services and click OK.
+6.  Rename Network connection to "Customer Interface" in order to add it to **NAT/Firewall Filter Driver** processing
+7.  Run cmd.exe as Administrator and then run installsvc.cmd
