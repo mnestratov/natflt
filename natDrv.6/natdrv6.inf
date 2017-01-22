@@ -5,7 +5,7 @@ ClassGUID  = {4D36E974-E325-11CE-BFC1-08002BE10318}
 CatalogFile     = natdrv6.cat
 
 Provider    	= %winkd%
-DriverVer   = 01/04/2017, 2.0
+DriverVer   = 01/21/2017,2.00
 
 [Manufacturer]
 %winkd% = winkd,NTx86,NTamd64
