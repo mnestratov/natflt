@@ -161,7 +161,6 @@ finish:
 
         NdisFreeSpinLock(&g_AdapterListLock);
     }
-
     return Status;
 }
 
@@ -278,12 +277,10 @@ FilterAttach(
 
 finish:
 
-    if (Status != NDIS_STATUS_SUCCESS)
-    {
+    if (Status != NDIS_STATUS_SUCCESS) {
+
         if (pAdapter != NULL)
-        {
             NdisFreeMemory(pAdapter, 0, 0);
-        }
     }
 
     return Status;
