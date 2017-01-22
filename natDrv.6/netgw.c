@@ -70,16 +70,16 @@ DriverEntry(
 
     RtlInitUnicodeString(&ServiceName, L"natdrv6");
     RtlInitUnicodeString(&FriendlyName, L"NAT/Firewall Filter Driver");
-    RtlInitUnicodeString(&UniqueName, L"natdrv6");
+    RtlInitUnicodeString(&UniqueName, L"{2B649CB0-8F36-4320-B0DD-B32E85F97853}");
     FilterDriverObject = DriverObject;
 
     NdisZeroMemory(&FChars, sizeof(NDIS_FILTER_DRIVER_CHARACTERISTICS));
     FChars.Header.Type = NDIS_OBJECT_TYPE_FILTER_DRIVER_CHARACTERISTICS;
     FChars.Header.Size = sizeof(NDIS_FILTER_DRIVER_CHARACTERISTICS);
     FChars.Header.Revision = NDIS_FILTER_CHARACTERISTICS_REVISION_2;
-    FChars.MajorNdisVersion = 6;
-    FChars.MinorNdisVersion = 0;
-    FChars.MajorDriverVersion = 1;
+    FChars.MajorNdisVersion = NDIS_FILTER_MAJOR_VERSION;
+    FChars.MinorNdisVersion = NDIS_FILTER_MINOR_VERSION;
+    FChars.MajorDriverVersion = 2;
     FChars.MinorDriverVersion = 0;
     FChars.Flags = 0;
 
