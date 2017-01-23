@@ -69,9 +69,7 @@ Deployment
 
 Before you deploy a self signed driver, you must turn on test signing and install a certificate on the target computer as described above
 
-Natdrv6 is installed as a service. To install it, do the following:
-
-1.  Prepare an installation directory on the target computer and copy these files from the host computer into the directory:
+Natdrv6 is installed as a service. To install it, prepare an installation directory on the target computer and copy these files from the host computer into the directory:
 ```
     natdrv6.cat
     natdrv6.inf
@@ -83,9 +81,11 @@ Natdrv6 is installed as a service. To install it, do the following:
     installsvc.cmd
 
 ```
-2.  Open **Windows Settings**.
-3.  Click **Network and Internet** then click **Change Adapter Options** and click the connection listed under **Connections**: and click **Properties**.
-4.  Click **Install**, then **Service**, then **Add**, then **Have Disk**.
-5.  Browse to the installation directory. Highlight the natdrv6.inf file and click **Open**, then click OK. Highlight **NAT/Firewall Filter Driver** in a list of Network Services and click OK.
-6.  Rename Network connection to "Customer Interface" in order to add it to **NAT/Firewall Filter Driver** processing
-7.  Run cmd.exe as Administrator and then run installsvc.cmd
+And do the following:
+
+1.  Open **Windows Settings**.
+2.  Click **Network and Internet** then click **Change Adapter Options** and click the connection listed under **Connections**: and click **Properties**.
+3.  Click **Install**, then **Service**, then **Add**, then **Have Disk**.
+4.  Browse to the installation directory. Highlight the natdrv6.inf file and click **Open**, then click OK. Highlight **NAT/Firewall Filter Driver** in a list of Network Services and click OK.
+5.  Rename Network connection to "Customer Interface" in order to add it to **NAT/Firewall Filter Driver** processing
+6.  Run cmd.exe as Administrator and then run installsvc.cmd
