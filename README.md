@@ -89,3 +89,66 @@ And do the following:
 4.  Browse to the installation directory. Highlight the natdrv6.inf file and click **Open**, then click OK. Highlight **NAT/Firewall Filter Driver** in a list of Network Services and click OK.
 5.  Rename Network connection to "Customer Interface" in order to add it to **NAT/Firewall Filter Driver** processing
 6.  Run cmd.exe as Administrator and then run installsvc.cmd
+
+How it works
+------------
+
+```
+
+            +-------------------+                 ==========================================
+            |                   |                 || **NAT/Firewall Filter Driver** Host  ||
+            |  External host    |                 ||                                      ||
+            |                   |                 ||                                      ||
+            |  192.168.190.1    |                 ||                                      ||
+            |                   |                 ||                                      ||
+            +-------------------+                 ||   +---------------------------+      ||
+                      |                           ||   |                           |      ||
+                      |                           ||   | "Customer Interface"      |      ||
+                      |                           ||   |                           |      ||
+                      +---------------------------||---+  The first IP address:    |      ||
+                                                  ||   |  --------------------     |      ||
+                                                  ||   |  192.168.190.137          |      ||
+                                                  ||   |                           |      ||
+                                                  ||   |  Host 192.168.139.128     |      ||
+                                                  ||   |  1x1 NAT IP address:      |      ||
+                                                  ||   |  ------------------       |      ||
+                                                  ||   |  192.168.190.138          |      ||
+                                                  ||   |                           |      ||
+                                                  ||   |  Host 192.168.139.129     |      ||
+                                                  ||   |  1x1 NAT IP address:      |      ||
+                                                  ||   |  ------------------       |      ||
+                                                  ||   |  192.168.190.139          |      ||
+                                                  ||   |                           |      ||
+                                                  ||   |  Host 192.168.139.130     |      ||
+                                                  ||   |  1x1 NAT IP address:      |      ||
+                                                  ||   |  ------------------       |      ||
+                                                  ||   |  192.168.190.140          |      ||
+                                                  ||   |                           |      ||
+                                                  ||   |  ...                      |      ||
+                                                  ||   |                           |      ||
+                                                  ||   +---------------------------+      ||
+                                                  ||                |                     ||
+                                                  ||                |                     ||
+                                                  ||                |                     ||
+                                                  ||   +---------------------------+      ||
+                                                  ||   |                           |      ||
+                                                  ||   | Private Network interface |      ||
+                      +---------------------------||---|                           |-------------+
+                      |                     |     ||   | IP address:               |      ||     |
+                      |                     |     ||   | 192.168.139.1             |      ||     |
+                      |                     |     ||   |                           |      ||     |
+                      |                     |     ||   +---------------------------+      ||     |
+                      |                     |     ||                                      ||     |
+                      |                     |     ==========================================     |
+                      |                     |                                                    |
+            +-----------------------+  +-----------------------+              +------------------------+
+            |                       |  |                       |              |                        |
+            |  Destination host #1  |  |  Destination Host #2  |              |  Destination Host #3   |
+            |                       |  |                       |              |                        |
+            |  192.168.139.128      |  |  192.168.139.129      |              |  192.168.139.130       |
+            |                       |  |                       |              |                        |
+            +-----------------------+  +-----------------------+              +------------------------+
+
+
+
+```
