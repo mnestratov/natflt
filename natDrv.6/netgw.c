@@ -33,7 +33,7 @@ filterGetNewNetBufferList(
 BOOLEAN
 filterSendReceiveNBL(
     IN PNETGW_ADAPT pAdapter,
-    IN PNET_BUFFER_LIST  pNBL,
+    IN PNET_BUFFER_LIST pNBL,
     IN NDIS_PORT_NUMBER PortNumber,
     IN ULONG Flags,
     IN BOOLEAN bSend
@@ -57,16 +57,16 @@ NDIS_FILTER_PARTIAL_CHARACTERISTICS DefaultChars = {
 
 NDIS_STATUS
 DriverEntry(
-    IN  PDRIVER_OBJECT      DriverObject,
-    IN  PUNICODE_STRING     RegistryPath
+    IN PDRIVER_OBJECT DriverObject,
+    IN PUNICODE_STRING RegistryPath
 )
 {
-    NDIS_STATUS                			Status;
-    NDIS_FILTER_DRIVER_CHARACTERISTICS	FChars;
-    NDIS_STRING                         ServiceName;
-    NDIS_STRING                         UniqueName;
-    NDIS_STRING                         FriendlyName;
-    NET_BUFFER_LIST_POOL_PARAMETERS		NetBufferListPoolParam;
+    NDIS_STATUS Status;
+    NDIS_FILTER_DRIVER_CHARACTERISTICS FChars;
+    NDIS_STRING ServiceName;
+    NDIS_STRING UniqueName;
+    NDIS_STRING FriendlyName;
+    NET_BUFFER_LIST_POOL_PARAMETERS NetBufferListPoolParam;
 
     RtlInitUnicodeString(&ServiceName, L"natdrv6");
     RtlInitUnicodeString(&FriendlyName, L"NAT/Firewall Filter Driver");
@@ -166,8 +166,8 @@ finish:
 
 NDIS_STATUS
 FilterRegisterOptions(
-    IN NDIS_HANDLE  NdisFilterDriverHandle,
-    IN NDIS_HANDLE  FilterDriverContext
+    IN NDIS_HANDLE NdisFilterDriverHandle,
+    IN NDIS_HANDLE FilterDriverContext
 )
 {
     ASSERT(NdisFilterDriverHandle == FilterDriverHandle);
@@ -183,9 +183,9 @@ FilterRegisterOptions(
 
 NDIS_STATUS
 FilterAttach(
-    IN  NDIS_HANDLE                     NdisFilterHandle,
-    IN  NDIS_HANDLE                     FilterDriverContext,
-    IN  PNDIS_FILTER_ATTACH_PARAMETERS  AttachParameters
+    IN NDIS_HANDLE NdisFilterHandle,
+    IN NDIS_HANDLE FilterDriverContext,
+    IN PNDIS_FILTER_ATTACH_PARAMETERS AttachParameters
 )
 {
     PNETGW_ADAPT pAdapter = NULL;
@@ -288,8 +288,8 @@ finish:
 
 NDIS_STATUS
 FilterPause(
-    IN  NDIS_HANDLE Context,
-    IN  PNDIS_FILTER_PAUSE_PARAMETERS PauseParameters
+    IN NDIS_HANDLE Context,
+    IN PNDIS_FILTER_PAUSE_PARAMETERS PauseParameters
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)(Context);
@@ -316,8 +316,8 @@ FilterPause(
 
 NDIS_STATUS
 FilterRestart(
-    IN  NDIS_HANDLE Context,
-    IN  PNDIS_FILTER_RESTART_PARAMETERS RestartParameters
+    IN NDIS_HANDLE Context,
+    IN PNDIS_FILTER_RESTART_PARAMETERS RestartParameters
 )
 {
     NDIS_STATUS	Status;
@@ -394,7 +394,7 @@ FilterRestart(
 
 VOID
 FilterDetach(
-    IN  NDIS_HANDLE Context
+    IN NDIS_HANDLE Context
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
@@ -411,7 +411,7 @@ FilterDetach(
 
 VOID
 FilterUnload(
-    IN  PDRIVER_OBJECT      driverObject
+    IN PDRIVER_OBJECT driverObject
 )
 {
     UNREFERENCED_PARAMETER(driverObject);
@@ -432,8 +432,8 @@ FilterUnload(
 
 VOID
 FilterStatus(
-    IN  NDIS_HANDLE             Context,
-    IN  PNDIS_STATUS_INDICATION StatusIndication
+    IN NDIS_HANDLE Context,
+    IN PNDIS_STATUS_INDICATION StatusIndication
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
@@ -532,12 +532,12 @@ FilterStatus(
 
 VOID
 FilterDevicePnPEventNotify(
-    IN  NDIS_HANDLE             Context,
-    IN  PNET_DEVICE_PNP_EVENT   NetDevicePnPEvent
+    IN NDIS_HANDLE Context,
+    IN PNET_DEVICE_PNP_EVENT NetDevicePnPEvent
 )
 {
-    PNETGW_ADAPT          pAdapter = (PNETGW_ADAPT)Context;
-    NDIS_DEVICE_PNP_EVENT   DevicePnPEvent = NetDevicePnPEvent->DevicePnPEvent;
+    PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
+    NDIS_DEVICE_PNP_EVENT DevicePnPEvent = NetDevicePnPEvent->DevicePnPEvent;
 
     switch (DevicePnPEvent) {
         case NdisDevicePnPEventQueryRemoved:
@@ -559,8 +559,8 @@ FilterDevicePnPEventNotify(
 
 NDIS_STATUS
 FilterNetPnPEvent(
-    IN  NDIS_HANDLE             Context,
-    IN  PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification
+    IN NDIS_HANDLE Context,
+    IN PNET_PNP_EVENT_NOTIFICATION NetPnPEventNotification
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
@@ -572,7 +572,11 @@ FilterNetPnPEvent(
 }
 
 
-VOID FilterFreeNetBufferList(PNET_BUFFER_LIST pNBList, BOOLEAN bFreeMdl)
+VOID
+FilterFreeNetBufferList(
+    PNET_BUFFER_LIST pNBList,
+    BOOLEAN bFreeMdl
+)
 {
     PNET_BUFFER pNBuf, pCurNBuf;
     PMDL pMdl = NULL, pCurrMdl = NULL;
@@ -606,9 +610,9 @@ VOID FilterFreeNetBufferList(PNET_BUFFER_LIST pNBList, BOOLEAN bFreeMdl)
 
 VOID
 FilterSendNetBufferListsComplete(
-    IN  NDIS_HANDLE         Context,
-    IN  PNET_BUFFER_LIST    NetBufferLists,
-    IN  ULONG               SendCompleteFlags
+    IN NDIS_HANDLE Context,
+    IN PNET_BUFFER_LIST NetBufferLists,
+    IN ULONG SendCompleteFlags
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
@@ -660,10 +664,10 @@ FilterSendNetBufferListsComplete(
 
 VOID
 FilterSendNetBufferLists(
-    IN  NDIS_HANDLE         Context,
-    IN  PNET_BUFFER_LIST    NetBufferLists,
-    IN  NDIS_PORT_NUMBER    PortNumber,
-    IN  ULONG               SendFlags
+    IN NDIS_HANDLE Context,
+    IN PNET_BUFFER_LIST NetBufferLists,
+    IN NDIS_PORT_NUMBER PortNumber,
+    IN ULONG SendFlags
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
@@ -844,9 +848,9 @@ filterSendReceiveNBL(
 
 VOID
 FilterReturnNetBufferLists(
-    IN  NDIS_HANDLE         FilterModuleContext,
-    IN  PNET_BUFFER_LIST    NetBufferLists,
-    IN  ULONG               ReturnFlags
+    IN NDIS_HANDLE FilterModuleContext,
+    IN PNET_BUFFER_LIST NetBufferLists,
+    IN ULONG ReturnFlags
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)FilterModuleContext;
@@ -896,15 +900,15 @@ FilterReturnNetBufferLists(
 
 VOID
 FilterReceiveNetBufferLists(
-    IN  NDIS_HANDLE         Context,
-    IN  PNET_BUFFER_LIST    NetBufferLists,
-    IN  NDIS_PORT_NUMBER    PortNumber,
-    IN  ULONG               NumberOfNetBufferLists,
-    IN  ULONG               ReceiveFlags
+    IN  NDIS_HANDLE Context,
+    IN  PNET_BUFFER_LIST NetBufferLists,
+    IN  NDIS_PORT_NUMBER PortNumber,
+    IN  ULONG NumberOfNetBufferLists,
+    IN  ULONG ReceiveFlags
 )
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
-    BOOLEAN	bDispatchLevel, bResources;
+    BOOLEAN bDispatchLevel, bResources;
     PNET_BUFFER_LIST pCurList = NULL, pNBListToRcv = NULL;
     PNET_BUFFER_LIST pFirstNblToRcv = NULL, pPrevNblToRcv = NULL;
     ULONG uNBListCount = 0;
@@ -958,11 +962,8 @@ FilterReceiveNetBufferLists(
 
             pPrevNblToRcv = pNBListToRcv;
 
-        }
-        else {
-
+        } else
             NdisFReturnNetBufferLists(pAdapter->FilterHandle, pNBListToRcv, bDispatchLevel);
-        }
     }
 
     if (uNBListCount) {
@@ -972,8 +973,8 @@ FilterReceiveNetBufferLists(
 
 VOID
 FilterCancelSendNetBufferLists(
-    IN  NDIS_HANDLE             Context,
-    IN  PVOID                   CancelId
+    IN NDIS_HANDLE Context,
+    IN PVOID CancelId
 )
 {
     PNETGW_ADAPT  pAdapter = (PNETGW_ADAPT)Context;
@@ -982,7 +983,7 @@ FilterCancelSendNetBufferLists(
 
 NDIS_STATUS
 FilterSetModuleOptions(
-    IN  NDIS_HANDLE             Context
+    IN NDIS_HANDLE Context
 )
 {
     UNREFERENCED_PARAMETER(Context);
