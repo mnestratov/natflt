@@ -658,8 +658,6 @@ FilterSendNetBufferListsComplete(
 }
 
 
-#define MAX_PACKETS 64
-
 VOID
 FilterSendNetBufferLists(
     IN  NDIS_HANDLE         Context,
