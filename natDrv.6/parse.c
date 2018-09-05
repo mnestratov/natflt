@@ -221,15 +221,20 @@ filterGetNewNetBufferList(
             return NULL;
     }
 
-    pNBL = NdisAllocateNetBufferAndNetBufferList(g_PoolNetBufferList, sizeof(FLT_PKT_CTX), 0, pMDL, 0, uDataLength);
+    pNBL = NdisAllocateNetBufferAndNetBufferList(g_PoolNetBufferList, 0, 0, pMDL, 0, uDataLength);
     if (pNBL == NULL) {
         PrintFtlPkt("NdisAllocateNetBufferAndNetBufferList ", pFltPkt, 0, !pFltPkt->Incoming);
         goto cleanup;
     }
 
+    if (NDIS_STATUS_SUCCESS != NdisAllocateNetBufferListContext(pNBL, natGetFltPktContextSize(), 0, NAT_FLT_SIGNATURE)) {
+        PrintFtlPkt("NdisAllocateNetBufferAndNetBufferList ", pFltPkt, 0, !pFltPkt->Incoming);
+        goto cleanup;
+    }
+
     pPktCtx = (FLT_PKT_CTX*)NET_BUFFER_LIST_CONTEXT_DATA_START(pNBL);
-    pPktCtx->Signature = 'eNwG';
-    pPktCtx->Size = sizeof(FLT_PKT_CTX);
+    pPktCtx->Signature = NAT_FLT_SIGNATURE;
+    pPktCtx->Size = sizeof(FLT_PKT);
     pPktCtx->pFltPkt = pFltPkt;
     NET_BUFFER_LIST_INFO(pNBL, TcpIpChecksumNetBufferListInfo) = 0;
     NET_BUFFER_LIST_INFO(pNBL, TcpLargeSendNetBufferListInfo) = 0;
@@ -252,6 +257,9 @@ cleanup:
             NdisFreeMdl(pTempMdl);
         }
     }
+
+    if (pPktCtx != NULL)
+        NdisFreeNetBufferListContext(pNBL, natGetFltPktContextSize());
 
     if (pNBL != NULL)
         NdisFreeNetBufferList(pNBL);

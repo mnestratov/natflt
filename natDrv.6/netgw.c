@@ -131,7 +131,7 @@ DriverEntry(
     NetBufferListPoolParam.Header.Size = NDIS_SIZEOF_NET_BUFFER_LIST_POOL_PARAMETERS_REVISION_1;
     NetBufferListPoolParam.ProtocolId = NDIS_PROTOCOL_ID_DEFAULT;
     NetBufferListPoolParam.fAllocateNetBuffer = TRUE;
-    NetBufferListPoolParam.ContextSize = 0;
+    NetBufferListPoolParam.ContextSize = natGetFltPktContextSize();
     NetBufferListPoolParam.PoolTag = MODULE_TAG1;
     NetBufferListPoolParam.DataSize = 0;
     g_PoolNetBufferList = NdisAllocateNetBufferListPool(FilterDriverHandle, &NetBufferListPoolParam);
@@ -605,6 +605,9 @@ FilterFreeNetBufferList(
         }
     }
 
+    if (natGetFltPktFromContext(pNBList))
+        NdisFreeNetBufferListContext(pNBList, natGetFltPktContextSize());
+
     NdisFreeNetBufferList(pNBList);
 }
 
@@ -617,8 +620,6 @@ FilterSendNetBufferListsComplete(
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)Context;
     PNET_BUFFER_LIST pCurList = NULL;
-    PNET_BUFFER_LIST_CONTEXT pContext;
-    FLT_PKT_CTX* pFltContext;
     FLT_PKT* pFltPkt;
 
     while (NetBufferLists != NULL) {
@@ -633,23 +634,7 @@ FilterSendNetBufferListsComplete(
             continue;
         }
 
-        pFltPkt = NULL;
-        for (pContext = pCurList->Context; pContext != NULL; pContext = pContext->Next) {
-
-            if (pContext->Size != sizeof(FLT_PKT_CTX))
-                continue;
-            pFltContext = (FLT_PKT_CTX*)(pContext + 1);
-            if (pFltContext->Signature != 'eNwG')
-                continue;
-            if (pFltContext->Size != pContext->Size)
-                continue;
-
-            pFltPkt = pFltContext->pFltPkt;
-            if (pFltPkt == NULL)
-                continue;
-            break;
-        }
-
+        pFltPkt = (FLT_PKT*)natGetFltPktFromContext(pCurList);
         if (pFltPkt == NULL) {
             InterlockedDecrement(&pAdapter->TRxPending);
             continue;
@@ -702,16 +687,17 @@ FilterSendNetBufferLists(
 
         if (!filterSendReceiveNBL(pAdapter, pList2Send, PortNumber, SendFlags, TRUE)) {
             NdisFSendNetBufferListsComplete(pAdapter->FilterHandle, pList2Send, bDispatchLevel ? NDIS_SEND_COMPLETE_FLAGS_DISPATCH_LEVEL : 0);
-        } else {
-            if (pFirstList2Send == NULL)
-                pFirstList2Send = pList2Send;
-
-            if (pPrevList2Send != NULL)
-                pPrevList2Send->Next = pList2Send;
-
-            pPrevList2Send = pList2Send;
-            uLists2Send++;
+            continue;
         }
+
+        if (pFirstList2Send == NULL)
+            pFirstList2Send = pList2Send;
+
+        if (pPrevList2Send != NULL)
+            pPrevList2Send->Next = pList2Send;
+
+        pPrevList2Send = pList2Send;
+        uLists2Send++;
     }
 
     if (uLists2Send)
@@ -855,8 +841,6 @@ FilterReturnNetBufferLists(
 {
     PNETGW_ADAPT pAdapter = (PNETGW_ADAPT)FilterModuleContext;
     PNET_BUFFER_LIST pCurList = NULL;
-    PNET_BUFFER_LIST_CONTEXT pContext;
-    FLT_PKT_CTX* pFltContext;
     FLT_PKT* pFltPkt;
 
     while (NetBufferLists != NULL) {
@@ -870,24 +854,8 @@ FilterReturnNetBufferLists(
             continue;
         }
 
-        pFltPkt = NULL;
-        for (pContext = pCurList->Context; pContext != NULL; pContext = pContext->Next) {
-
-            if (pContext->Size != sizeof(FLT_PKT_CTX))
-                continue;
-            pFltContext = (FLT_PKT_CTX*)(pContext + 1);
-            if (pFltContext->Signature != 'eNwG')
-                continue;
-            if (pFltContext->Size != pContext->Size)
-                continue;
-
-            pFltPkt = pFltContext->pFltPkt;
-            if (pFltPkt == NULL)
-                continue;
-            break;
-        }
-
-        if (NULL == pFltPkt) {
+        pFltPkt = (FLT_PKT*)natGetFltPktFromContext(pCurList);
+        if (pFltPkt == NULL) {
             InterlockedDecrement(&pAdapter->TRxPending);
             continue;
         }
@@ -999,4 +967,24 @@ natmSendFltPacket(
     UNREFERENCED_PARAMETER(pAdaptControl);
     UNREFERENCED_PARAMETER(pFltPkt);
     return NDIS_STATUS_SUCCESS;
+}
+
+USHORT natGetFltPktContextSize()
+{
+    return sizeof(FLT_PKT_CTX);
+}
+
+PVOID natGetFltPktFromContext(PNET_BUFFER_LIST pNBL)
+{
+    FLT_PKT_CTX *pFltPktCtx = NULL;
+    if (pNBL->Context == NULL)
+        return NULL;
+    if (NET_BUFFER_LIST_CONTEXT_DATA_SIZE(pNBL) != natGetFltPktContextSize())
+        return NULL;
+    pFltPktCtx = (FLT_PKT_CTX*)NET_BUFFER_LIST_CONTEXT_DATA_START(pNBL);
+    if (pFltPktCtx->Signature != NAT_FLT_SIGNATURE)
+        return NULL;
+    if (pFltPktCtx->Size != sizeof(FLT_PKT))
+        return NULL;
+    return pFltPktCtx->pFltPkt;
 }

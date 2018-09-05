@@ -282,6 +282,11 @@ filterFindFilterModule(
     IN ULONG                    BufferLength
 );
 
+PVOID natGetFltPktFromContext(
+    PNET_BUFFER_LIST pNBL
+);
+
+USHORT natGetFltPktContextSize();
 
 
 #endif  //_NDISRD_H

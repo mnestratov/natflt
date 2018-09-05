@@ -40,6 +40,8 @@ typedef struct _FLT_PKT {
 #define NAT_LOG_REG_VALUE_PASS			L"PktLogPASS"
 #define NAT_LOG_REG_VALUE_DROP			L"PktLogDROP"
 
+#define NAT_FLT_SIGNATURE               'pNwG'
+
 extern ULONG g_LogPktDrop;
 extern ULONG g_LogPktPass;
 extern ULONG g_LogPktNAT;
