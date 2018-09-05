@@ -167,4 +167,3 @@ VOID FreeFltPkt(FLT_PKT* pFltPkt)
 
     ExFreeToNPagedLookasideList(&g_PktLookaside, pFltPkt);
 }
-

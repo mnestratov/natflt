@@ -215,7 +215,6 @@ filterGetNewNetBufferList(
         uDataLength = pFltPkt->uLen;
         pMDL = NET_BUFFER_CURRENT_MDL((PNET_BUFFER)pFltPkt->pOrgPkt);
         uMdlOffset = NET_BUFFER_CURRENT_MDL_OFFSET((PNET_BUFFER)pFltPkt->pOrgPkt);
-        bAllocMdl = FALSE;
 
         if (pMDL == NULL)
             return NULL;
@@ -304,7 +303,6 @@ natbParsePacket(
     ETH_HDR* pEthHdr;
     UINT uNeedBytes = 0;
     PMDL pMDL = NULL;
-    PVOID p;
 
     if (NULL == pNetBuf) {
 
@@ -313,25 +311,16 @@ natbParsePacket(
         uPktLen = pFltPkt->uLen;
         pFltPkt->pData = NULL;
 
-    }
-    else {
+    } else {
 
+        //
+        // Construct a full copy of the packet
+        // as we don't track original net buffer lists
+        //
         uPktLen = NET_BUFFER_DATA_LENGTH(pNetBuf);
-        pFltPkt->pOrgPkt = pNetBuf;
-
         pFltPkt->uLen = uPktLen;
-        uCurNetBufSz = NET_BUFFER_DATA_LENGTH(pNetBuf);
-        pMDL = NET_BUFFER_CURRENT_MDL(pNetBuf);
-
-        if (MmGetMdlByteCount(pMDL) <= NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf))
-            goto finish;
-
-        uBufLen = min(MmGetMdlByteCount(pMDL) - NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf), uCurNetBufSz);
-        p = MmGetSystemAddressForMdlSafe(pMDL, NormalPagePriority);
-        if (p == NULL)
-            GOTO_FINISH;
-
-        pEthHdr = (ETH_HDR*)((PUCHAR)p + NET_BUFFER_CURRENT_MDL_OFFSET(pNetBuf));
+        pFltPkt->pOrgPkt = Pkt;
+        return CopyNdisPacketToFltPacket(pFltPkt);
     }
 
     pFltPkt->pEth = pEthHdr;

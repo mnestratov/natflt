@@ -714,7 +714,6 @@ filterSendReceiveNBL(
 )
 {
     PNET_BUFFER pNB;
-    BOOLEAN processImmediately = FALSE;
     BOOLEAN dropAll = FALSE;
     FLT_PKT* pFltPkt;
     FLT_PKT* pFirstFltPkt = NULL, *pPrevFltPkt = NULL;
@@ -730,7 +729,6 @@ filterSendReceiveNBL(
         if (NULL == pFltPkt) {
 
             dropAll = TRUE;
-            processImmediately = FALSE;
             break;
         }
 
@@ -740,7 +738,6 @@ filterSendReceiveNBL(
 
             FreeFltPkt(pFltPkt);
             dropAll = TRUE;
-            processImmediately = FALSE;
             break;
         }
 
@@ -753,7 +750,6 @@ filterSendReceiveNBL(
 
                 FreeFltPkt(pFltPkt);
                 dropAll = TRUE;
-                processImmediately = FALSE;
                 break;
             }
 
@@ -770,7 +766,6 @@ filterSendReceiveNBL(
 
                 FreeFltPkt(pFltPkt);
                 dropAll = TRUE;
-                processImmediately = FALSE;
                 break;
             }
         }
@@ -781,9 +776,6 @@ filterSendReceiveNBL(
             pFirstFltPkt = pFltPkt;
 
         pPrevFltPkt = pFltPkt;
-
-        if (pFltPkt->pBuf)
-            processImmediately = TRUE;
     }
 
     for (pFltPkt = pFirstFltPkt; pFltPkt; pFltPkt = pPrevFltPkt) {
@@ -795,11 +787,9 @@ filterSendReceiveNBL(
                 PrintFtlPkt("DROP+ ", pFltPkt, 0, bSend);
         }
         else {
-            if (g_LogPktPass) PrintFtlPkt(processImmediately ? "PASS+ " : "PASS ", pFltPkt, 0, bSend);
-        }
-
-        if (processImmediately)
+            if (g_LogPktPass) PrintFtlPkt("PASS ", pFltPkt, 0, bSend);
             pNBList = filterGetNewNetBufferList(pFltPkt, pAdapter);
+        }
 
         pPrevFltPkt = pFltPkt->pNext;
 
@@ -824,11 +814,16 @@ filterSendReceiveNBL(
 
         if (bSend)
             NdisFSendNetBufferLists(pAdapter->FilterHandle, pFirstList, PortNumber, Flags);
-        else
+        else {
+            BOOLEAN bResources = NDIS_TEST_RECEIVE_FLAG(Flags, NDIS_RECEIVE_FLAGS_RESOURCES);
             NdisFIndicateReceiveNetBufferLists(pAdapter->FilterHandle, pFirstList, PortNumber, uLists, Flags);
+            if (bResources) {
+                FilterReturnNetBufferLists(pAdapter, pFirstList, 0);
+            }
+        }
     }
 
-    return !processImmediately && !dropAll;
+    return FALSE;
 }
 
 
