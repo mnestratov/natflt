@@ -900,7 +900,9 @@ FilterReceiveNetBufferLists(
 
         for (pCurList = NetBufferLists; pCurList; pCurList = NET_BUFFER_LIST_NEXT_NBL(pCurList)) {
 
-            if (filterSendReceiveNBL(pAdapter, pCurList, PortNumber, ReceiveFlags, FALSE)) {
+            BOOLEAN bLoopback = NdisTestNblFlags(pCurList, NDIS_NBL_FLAGS_IS_LOOPBACK_PACKET);
+
+            if (bLoopback || filterSendReceiveNBL(pAdapter, pCurList, PortNumber, ReceiveFlags, FALSE)) {
 
                 pNBListToRcv = NET_BUFFER_LIST_NEXT_NBL(pCurList);
                 NET_BUFFER_LIST_NEXT_NBL(pCurList) = NULL;
@@ -915,11 +917,12 @@ FilterReceiveNetBufferLists(
 
     for (pCurList = NetBufferLists; pCurList != NULL;) {
 
+        BOOLEAN bLoopback = NdisTestNblFlags(pCurList, NDIS_NBL_FLAGS_IS_LOOPBACK_PACKET);
         pNBListToRcv = pCurList;
         pCurList = NET_BUFFER_LIST_NEXT_NBL(pCurList);
         pNBListToRcv->Next = NULL;
 
-        if (filterSendReceiveNBL(pAdapter, pNBListToRcv, PortNumber, ReceiveFlags, FALSE)) {
+        if (bLoopback || filterSendReceiveNBL(pAdapter, pNBListToRcv, PortNumber, ReceiveFlags, FALSE)) {
 
             uNBListCount++;
 
