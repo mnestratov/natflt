@@ -403,7 +403,7 @@ static ULONG tens[5] =
     10000,
 };
 
-static ULONG NatAtoi(char *Str)
+static ULONG NatAtoi(char *Str, char *EndStr)
 {
     ULONG result = 0;
     ULONG Numbers[5];
@@ -412,7 +412,7 @@ static ULONG NatAtoi(char *Str)
 
     for (i = 0; i < 5; i++) {
 
-        if (0 == Str[i])
+        if (Str>EndStr || 0 == Str[i])
             break;
 
         if ('0' > Str[i] || Str[i] > '9')
@@ -449,10 +449,10 @@ static int natFixFtpPortContentAndCreateFwSession(
     ULONG addr[6] = { 0 };
     unsigned char *new_addr_ptr = (unsigned char*)&newIpAddr;
     char new_port_str[] = "PORT 255,255,255,255,255,255  ";
-    char *c;
+    char *c, *endc;
     ULONG tcp_data_len = pFltPkt->uLen - ETHERNET_HEADER_LEN - IP_HDR_LEN(pFltPkt->pIp) - TCP_HDR_LEN(pFltPkt->pTcp);
 
-    if (tcp_data_len > MAX_ETHER_SIZE)
+    if (tcp_data_len > pFltPkt->uLen)
         return 0;
 
     if (pFltPkt->pData)
@@ -468,10 +468,12 @@ static int natFixFtpPortContentAndCreateFwSession(
         return 0;
     }
 
+    endc = data + tcp_data_len;
+
     //
     // try to find the end of port command
     //
-    c = strchr(data, 0xa);
+    for (c = data;*c != 0xa && c <= endc; c++);
 
     org_addr_len = (ULONG)(ULONG_PTR)(c - data + 1);
     if (NULL == c || org_addr_len > tcp_data_len || 0xd != c[-1]) {
@@ -489,9 +491,9 @@ static int natFixFtpPortContentAndCreateFwSession(
     i = 0;
 
     while (i < 6) {
-        addr[i] = NatAtoi(c);
-        c = strchr(c, ',');
-        if (NULL == c) {
+        addr[i] = NatAtoi(c, endc);
+        for (;*c != ',' && c <= endc; c++);
+        if (c > endc) {
             if (i != 5)
                 return 0;
             break;
