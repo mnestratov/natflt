@@ -95,13 +95,13 @@ bLoadNatTable(ULONGLONG *pCustomerMac)
             continue;
         }
 
-        if (1 != inet_pton(AF_INET, prvIpStr, &nat_entry.PrvIpAddr)) {
+        if (1 != inet_pton(AF_INET, prvIpStr, &nat_entry.uPrvIpAddr)) {
 
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
 
-        if (1 != inet_pton(AF_INET, pubIpStr, &nat_entry.PubIpAddr)) {
+        if (1 != inet_pton(AF_INET, pubIpStr, &nat_entry.uPubIpAddr)) {
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
@@ -221,13 +221,13 @@ bLoadFirewall(ULONGLONG *pCustomerMac)
         }
         fw_entry.uPubMask = uOnesToMask(fw_entry.uPubMask);
 
-        if (1 != inet_pton(AF_INET, prvIpStr, &fw_entry.PrvIpAddr)) {
+        if (1 != inet_pton(AF_INET, prvIpStr, &fw_entry.uPrvIpAddr)) {
 
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }
 
-        if (1 != inet_pton(AF_INET, pubIpStr, &fw_entry.PubIpAddr)) {
+        if (1 != inet_pton(AF_INET, pubIpStr, &fw_entry.uPubIpAddr)) {
             LOG_ERROR(("'%s'(%d) : Invalid IP address detected while parsing string '%s'", file_name, line, buf));
             continue;
         }

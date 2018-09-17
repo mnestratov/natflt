@@ -67,15 +67,9 @@ typedef struct _NATDRV_IO_INIT {
 typedef struct _NATDRV_IO_FW_RULE {
 
     ULONGLONG uMacAddr;
-    union {
-        ULONG uPrvIpAddr;
-        IN_ADDR PrvIpAddr;
-    };
+    ULONG uPrvIpAddr;
     ULONG uPrvMask;
-    union {
-        ULONG uPubIpAddr;
-        IN_ADDR PubIpAddr;
-    };
+    ULONG uPubIpAddr;
     ULONG uPubMask;
     ULONG uProtocol;
     ULONG uPort;
@@ -86,14 +80,8 @@ typedef struct _NATDRV_IO_FW_RULE {
 typedef struct _NATDRV_IO_NAT_ENTRY {
 
     ULONGLONG uMacAddr;
-    union {
-        IN_ADDR PrvIpAddr;
-        ULONG uPrvIpAddr;
-    };
-    union {
-        IN_ADDR PubIpAddr;
-        ULONG uPubIpAddr;
-    };
+    ULONG uPrvIpAddr;
+    ULONG uPubIpAddr;
 }NATDRV_IO_NAT_ENTRY;
 
 
